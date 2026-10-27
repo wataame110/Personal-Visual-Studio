@@ -170,3 +170,78 @@ describe('性別テンプレート切替（データ保持）', () => {
     expect(useEditorStore.getState().globals.sex).toBe('female');
   });
 });
+
+describe('医療モードの初期状態（非着衣）', () => {
+  beforeEach(() => {
+    useEditorStore.setState({ mode: 'general' });
+    useEditorStore.getState().resetAll();
+    useEditorStore.setState({ past: [], future: [], scenarios: [] });
+  });
+
+  it('医療モードへ切り替えると全衣服が非着用になる', () => {
+    useEditorStore.getState().setMode('medical');
+    const cs = useEditorStore.getState().clothing;
+    expect(cs.garments.every((g) => !g.visible)).toBe(true);
+    expect(cs.glasses.visible).toBe(false);
+    expect(cs.accessories.every((a) => !a.visible)).toBe(true);
+  });
+
+  it('医療モードでは衣服データが保持され自由に再着用できる', () => {
+    useEditorStore.getState().setMode('medical');
+    const s = useEditorStore.getState();
+    // 衣服の設定（色・種類）は消えていない
+    expect(s.clothing.garments.length).toBeGreaterThan(0);
+    // 医療モードでは自由に着脱できる
+    s.setClothing({
+      garments: s.clothing.garments.map((g) => (g.id === 'g-tops' ? { ...g, visible: true } : g)),
+    });
+    const after = useEditorStore.getState();
+    expect(after.clothing.garments.find((g) => g.id === 'g-tops')!.visible).toBe(true);
+    expect(after.clothing.garments.find((g) => g.id === 'g-pants')!.visible).toBe(false);
+  });
+
+  it('医療モードで新規リセットしても非着衣のまま', () => {
+    useEditorStore.getState().setMode('medical');
+    useEditorStore.getState().setClothing({
+      garments: useEditorStore.getState().clothing.garments.map((g) => ({ ...g, visible: true })),
+    });
+    useEditorStore.getState().resetAll();
+    expect(useEditorStore.getState().clothing.garments.every((g) => !g.visible)).toBe(true);
+  });
+
+  it('同じモードへの再設定では着衣状態が変化しない', () => {
+    useEditorStore.getState().setMode('medical');
+    const before = structuredClone(useEditorStore.getState().clothing);
+    useEditorStore.getState().setMode('medical');
+    expect(useEditorStore.getState().clothing).toEqual(before);
+  });
+});
+
+describe('本人写真の状態管理', () => {
+  beforeEach(() => {
+    useEditorStore.setState({ mode: 'general' });
+    useEditorStore.getState().resetAll();
+    useEditorStore.getState().setPhoto(null, []);
+  });
+
+  it('写真とランドマークを保持し、重ね合わせ・並列表示を制御できる', () => {
+    const s = useEditorStore.getState();
+    s.setPhoto('data:image/png;base64,xxxx', [{ x: 0.5, y: 0.3, label: 'face-1' }]);
+    let st = useEditorStore.getState();
+    expect(st.sourcePhoto).toBe('data:image/png;base64,xxxx');
+    expect(st.photoLandmarks).toHaveLength(1);
+    expect(st.photoOverlayVisible).toBe(false);
+    st.setPhotoOverlayVisible(true);
+    st.setPhotoOverlayOpacity(1.4);
+    st.setPhotoCompareVisible(true);
+    st = useEditorStore.getState();
+    expect(st.photoOverlayVisible).toBe(true);
+    expect(st.photoOverlayOpacity).toBe(1); // クランプされる
+    expect(st.photoCompareVisible).toBe(true);
+    // 写真を差し替えると比較表示はリセットされる
+    st.setPhoto('data:image/png;base64,yyyy', []);
+    st = useEditorStore.getState();
+    expect(st.photoOverlayVisible).toBe(false);
+    expect(st.photoCompareVisible).toBe(false);
+  });
+});

@@ -201,3 +201,128 @@ describe('3D人体モデル構築', () => {
     expect(ids.has('g-tops')).toBe(true);
   });
 });
+
+describe('本人特徴の保持（髪型・衣服変更で顔・体型が変化しない）', () => {
+  const meshPositions = (root: THREE.Object3D, name: string): number[] => {
+    let out: number[] = [];
+    root.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh && (o.name === name || o.userData.partId === name)) {
+        out = Array.from((o as THREE.Mesh).geometry.getAttribute('position').array);
+      }
+    });
+    return out;
+  };
+
+  it('髪型を変更しても顔メッシュ（head）は完全に同一', () => {
+    const a = baseOptions();
+    a.hair.style = 'bob';
+    const b = baseOptions();
+    b.hair.style = 'long';
+    b.hair.length = 1;
+    b.hair.color = '#ff0000';
+    const headA = meshPositions(buildBody(a), 'head');
+    const headB = meshPositions(buildBody(b), 'head');
+    expect(headA.length).toBeGreaterThan(0);
+    expect(headA).toEqual(headB);
+  });
+
+  it('髪色を変更しても頭部の材質色（肌色）は変化しない', () => {
+    const a = baseOptions();
+    const b = baseOptions();
+    b.hair.color = '#00ff00';
+    const matOf = (opts: ReturnType<typeof baseOptions>) => {
+      let m: THREE.MeshStandardMaterial | null = null;
+      buildBody(opts).traverse((o) => {
+        if ((o as THREE.Mesh).isMesh && o.name === 'head') m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial;
+      });
+      return m!;
+    };
+    expect(matOf(a).color.getHexString()).toBe(matOf(b).color.getHexString());
+  });
+
+  it('衣服を変更しても胴体メッシュ（torso）は完全に同一', () => {
+    const a = baseOptions();
+    const b = baseOptions();
+    b.clothing = structuredClone(b.clothing);
+    b.clothing.garments = b.clothing.garments.map((g) =>
+      g.id === 'g-tops' ? { ...g, visible: false } : g.id === 'g-dress' ? { ...g, visible: true, color: '#123456' } : g,
+    );
+    const torsoA = meshPositions(buildBody(a), 'torso');
+    const torsoB = meshPositions(buildBody(b), 'torso');
+    expect(torsoA.length).toBeGreaterThan(0);
+    expect(torsoA).toEqual(torsoB);
+  });
+
+  it('鼻の編集は鼻だけを変形し、目・口の形状は保持される', () => {
+    const a = baseOptions();
+    const b = baseOptions();
+    b.parts = structuredClone(b.parts);
+    b.parts.nose.morph.bridgeHeight = 1.8;
+    b.parts.nose.morph.tipSize = 1.8;
+    const bodyB = buildBody(b);
+    const bodyA = buildBody(a);
+    // 目・口のメッシュは同一
+    for (const name of ['eyeL', 'eyeR', 'mouth']) {
+      expect(meshPositions(bodyB, name)).toEqual(meshPositions(bodyA, name));
+    }
+  });
+});
+
+describe('衣服が身体を突き抜けない（幾何学的検証）', () => {
+  it('最大の脚の太さでもパンツが太腿・膝・ふくらはぎを全高さで覆う', () => {
+    const opts = baseOptions();
+    opts.globals.bodyFat = 1.5;
+    opts.parts.thighL.morph.thickness = 1.5;
+    opts.parts.thighR.morph.thickness = 1.5;
+    opts.parts.calfL.morph.thickness = 1.5;
+    opts.parts.calfR.morph.thickness = 1.5;
+    const body = buildBody(opts);
+
+    // 脚メッシュとパンツメッシュを収集
+    const thighVerts: THREE.Vector3[] = [];
+    const pantsVerts: THREE.Vector3[] = [];
+    body.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const pos = mesh.geometry.getAttribute('position');
+      const v = new THREE.Vector3();
+      const collect = (arr: THREE.Vector3[]) => {
+        for (let i = 0; i < pos.count; i++) arr.push(v.fromBufferAttribute(pos, i).clone());
+      };
+      if (mesh.userData.partId === 'thighL' || mesh.userData.partId === 'thighR'
+        || mesh.userData.partId === 'calfL' || mesh.userData.partId === 'calfR') collect(thighVerts);
+      if (mesh.userData.partId === 'g-pants') collect(pantsVerts);
+    });
+    expect(thighVerts.length).toBeGreaterThan(0);
+    expect(pantsVerts.length).toBeGreaterThan(0);
+
+    // 各高さ帯で、脚の中心からの最大半径がパンツの最大半径を超えないこと
+    const bins = new Map<number, { legMax: number; pantsMax: number }>();
+    const legAxisX = (x: number) => (x < 0 ? -1 : 1) * 0.092 * 1.65 * 0.45; // hipHalfW*0.45 相当
+    const radialOf = (v: THREE.Vector3) => {
+      const hx = legAxisX(v.x);
+      return Math.hypot(v.x - hx, v.z);
+    };
+    for (const v of thighVerts) {
+      const key = Math.round(v.y * 15);
+      const b = bins.get(key) ?? { legMax: 0, pantsMax: 0 };
+      b.legMax = Math.max(b.legMax, radialOf(v));
+      bins.set(key, b);
+    }
+    for (const v of pantsVerts) {
+      const key = Math.round(v.y * 15);
+      const b = bins.get(key);
+      if (!b) continue;
+      // パンツの帯（中央部）は脚軸からの半径が大きいため、脚メッシュのある側のみ評価
+      if (Math.sign(v.x) !== 0) b.pantsMax = Math.max(b.pantsMax, radialOf(v));
+    }
+    let checked = 0;
+    for (const [, b] of bins) {
+      if (b.legMax > 0.01 && b.pantsMax > 0.01) {
+        checked++;
+        expect(b.legMax).toBeLessThanOrEqual(b.pantsMax + 0.002);
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(4);
+  });
+});

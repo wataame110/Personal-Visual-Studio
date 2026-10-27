@@ -98,13 +98,26 @@ export function buildBody(opts: BuildOptions): THREE.Group {
   root.add(buildHair(rig, hair, quality));
 
   // 衣服（生成失敗時は無地のフォールバック衣服で再試行し、一般モードで裸体にならないようにする）
+  // 脚メッシュの実半径を衣服へ渡し、太腿等の突き抜けを防ぐ
+  const thighT = (parts.thighL?.morph.thickness ?? 1) * rig.fatFactor;
+  const calfT = (parts.calfL?.morph.thickness ?? 1) * (0.7 + rig.fatFactor * 0.3);
+  const muscle = parts.thighL?.morph.muscle ?? 0.2;
+  const r0 = 0.052 * rig.height * thighT;
+  const kneeR = 0.028 * rig.height * thighT;
+  const legFit = {
+    thighTop: r0 * 1.1,
+    thighMid: r0 * (0.85 + muscle * 0.2),
+    knee: kneeR,
+    calf: kneeR * 0.95 * calfT,
+    ankle: 0.016 * rig.height * calfT,
+  };
   for (const g of clothing.garments) {
     try {
-      root.add(buildGarment(rig, g, quality));
+      root.add(buildGarment(rig, g, quality, legFit));
     } catch {
       if (g.visible) {
         try {
-          root.add(buildFallbackGarment(rig, g, quality));
+          root.add(buildFallbackGarment(rig, g, quality, legFit));
         } catch {
           // フォールバックも失敗した場合は当該衣服のみスキップ（以降の部位生成は継続）
         }

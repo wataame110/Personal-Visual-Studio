@@ -255,3 +255,113 @@ def test_quality_screenshots(page, base_url, tmp_path):
     page.get_by_role("button", name="顔アップ").click()
     page.wait_for_timeout(800)
     page.locator(".panel-center canvas").first.screenshot(path=str(tmp_path / "face_general.png"))
+
+
+def open_medical_editor(page, base_url, medical_credentials):
+    """医療認証（二画面）を通過して医療エディターを開く"""
+    page.goto(f"{base_url}#/medical")
+    page.wait_for_timeout(800)
+    page.locator("#auth-userid").fill(medical_credentials["userId"])
+    page.locator("#auth-password").fill(medical_credentials["loginPassword"])
+    page.get_by_role("button", name="次へ").click()
+    page.wait_for_timeout(800)
+    page.locator("#auth-permit").fill(medical_credentials["permitPassword"])
+    page.get_by_role("button", name="医療モードを開始").click()
+    page.wait_for_timeout(1500)
+    expect(page.locator(".panel-center canvas").first).to_be_visible()
+
+
+def make_test_photo(path, width=240, height=360):
+    """純Pythonでテスト用PNGを生成（人物写真の代替・肌色っぽい矩形）"""
+    import zlib
+
+    def chunk(tag, data):
+        c = tag + data
+        return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c))
+
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)
+        for x in range(width):
+            # 背景(グレー)と中央の肌色領域
+            if width * 0.3 < x < width * 0.7 and height * 0.15 < y < height * 0.55:
+                raw += bytes((205, 160, 130))
+            else:
+                raw += bytes((120, 124, 130))
+    png = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(bytes(raw)))
+        + chunk(b"IEND", b"")
+    )
+    path.write_bytes(png)
+    return path
+
+
+def test_narrow_viewport_keeps_3d_visible(page, base_url):
+    """狭幅レイアウトでも3Dキャンバスが潰れない（高さ0バグの回帰テスト）"""
+    page.set_viewport_size({"width": 520, "height": 800})
+    page.goto(f"{base_url}#/editor")
+    page.wait_for_timeout(1500)
+    canvas = page.locator(".panel-center canvas").first
+    box = canvas.bounding_box()
+    assert box is not None and box["height"] >= 300, f"狭幅でキャンバスが潰れている: {box}"
+    # 実際に描画されている
+    assert len(canvas.screenshot()) > 10000
+
+
+def test_medical_mode_starts_unclothed(page, base_url, medical_credentials):
+    """医療版は非着衣が初期状態で、着脱が自由であること"""
+    open_medical_editor(page, base_url, medical_credentials)
+    page.get_by_role("button", name="衣服").click()
+    page.wait_for_timeout(300)
+    tops = page.locator(".param-row", has_text="トップス").locator("input[type=checkbox]").first
+    pants = page.locator(".param-row", has_text="パンツ").locator("input[type=checkbox]").first
+    # 初期状態は非着衣
+    expect(tops).not_to_be_checked()
+    expect(pants).not_to_be_checked()
+    # 医療版では自由に着用できる
+    tops.check()
+    page.wait_for_timeout(300)
+    expect(tops).to_be_checked()
+    expect(pants).not_to_be_checked()
+
+
+def test_photo_overlay_and_project_restore(page, base_url, tmp_path):
+    """元写真の重ね合わせ・並列表示と、プロジェクト保存後の写真復元"""
+    open_general_editor(page, base_url)
+    photo = make_test_photo(tmp_path / "person.png")
+    page.get_by_role("button", name="写真取込・解析").click()
+    page.wait_for_timeout(500)
+    # モーダル内のファイル入力へ写真を設定
+    page.locator(".modal input[type=file]").set_input_files(str(photo))
+    page.wait_for_timeout(500)
+    page.get_by_role("button", name="閉じる").click()
+    page.wait_for_timeout(300)
+    # 比較コントロールが表示される
+    overlay_toggle = page.get_by_text("写真を重ねる")
+    expect(overlay_toggle).to_be_visible()
+    overlay_toggle.click()
+    page.wait_for_timeout(300)
+    expect(page.locator(".photo-overlay img")).to_be_visible()
+    # 並列表示
+    page.get_by_text("写真を並列表示").click()
+    page.wait_for_timeout(300)
+    expect(page.locator(".photo-pane img")).to_be_visible()
+
+    # プロジェクト保存 → 再読込で写真が復元される
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="保存 (.pvsproj)").click()
+    proj = tmp_path / "with-photo.pvsproj"
+    dl.value.save_as(proj)
+    saved = json.loads(proj.read_text())
+    assert saved.get("sourcePhoto", "").startswith("data:image/png"), "元写真がプロジェクトに保存されていない"
+
+    page.goto(f"{base_url}#/editor")
+    page.wait_for_timeout(1500)
+    with page.expect_file_chooser() as fc2:
+        page.get_by_role("button", name="開く (.pvsproj)").click()
+    fc2.value.set_files(str(proj))
+    page.wait_for_timeout(1000)
+    # 写真が復元され比較コントロールが再び表示される
+    expect(page.get_by_text("写真を重ねる")).to_be_visible()

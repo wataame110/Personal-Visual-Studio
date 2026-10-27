@@ -149,6 +149,50 @@ export function ViewportPane({ compare, viewportRef, onPickPoint, pickMode }: Pr
         </div>
       )}
       <canvas ref={canvasRef} />
+      {!compare && store.photoOverlayVisible && store.sourcePhoto && (
+        <div className="photo-overlay" style={{ opacity: store.photoOverlayOpacity }}>
+          <div className="photo-frame">
+            <img src={store.sourcePhoto} alt="元写真の重ね合わせ" draggable={false} />
+            {store.photoLandmarks.map((lm, i) => (
+              <span
+                key={i}
+                className={`photo-landmark ${lm.label.startsWith('pose') ? 'pose' : 'face'}`}
+                style={{ left: `${lm.x * 100}%`, top: `${lm.y * 100}%` }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+      {!compare && store.sourcePhoto && (
+        <div className="photo-compare-controls">
+          <label>
+            <input
+              type="checkbox"
+              checked={store.photoOverlayVisible}
+              onChange={(e) => store.setPhotoOverlayVisible(e.target.checked)}
+            />
+            写真を重ねる
+          </label>
+          <input
+            type="range"
+            min={0.1}
+            max={1}
+            step={0.05}
+            value={store.photoOverlayOpacity}
+            disabled={!store.photoOverlayVisible}
+            aria-label="重ね合わせ透明度"
+            onChange={(e) => store.setPhotoOverlayOpacity(Number(e.target.value))}
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={store.photoCompareVisible}
+              onChange={(e) => store.setPhotoCompareVisible(e.target.checked)}
+            />
+            写真を並列表示
+          </label>
+        </div>
+      )}
       {!compare && (
         <div className="viewport-overlay" role="toolbar" aria-label="視点プリセット">
           {Object.entries(CAMERA_PRESETS)

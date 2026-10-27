@@ -19,7 +19,7 @@ function garmentMaterial(g: Garment): THREE.Material {
  * 衣服生成のフォールバック：参照テクスチャ・柄・異常パラメータを除外した
  * 無地の安全な衣服を生成する。読込失敗時に裸体を表示しないための保険。
  */
-export function buildFallbackGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low'): THREE.Group {
+export function buildFallbackGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low', legFit?: LegFit): THREE.Group {
   return buildGarment(
     rig,
     {
@@ -30,10 +30,20 @@ export function buildFallbackGarment(rig: BodyRig, g: Garment, quality: 'high' |
       offsetY: Number.isFinite(g.offsetY) ? g.offsetY : 0,
     },
     quality,
+    legFit,
   );
 }
 
-export function buildGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low'): THREE.Group {
+/** 脚メッシュの実半径（衣服が身体を突き抜けないようにするためのフィット情報） */
+export interface LegFit {
+  thighTop: number;
+  thighMid: number;
+  knee: number;
+  calf: number;
+  ankle: number;
+}
+
+export function buildGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low', legFit?: LegFit): THREE.Group {
   const group = new THREE.Group();
   group.name = g.id;
   if (!g.visible) return group;
@@ -44,9 +54,10 @@ export function buildGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low'):
 
   if (g.kind === 'tops' || g.kind === 'outer' || g.kind === 'dress') {
     const e = g.kind === 'outer' ? ease + 0.08 : ease;
-    const bottomY = g.kind === 'dress' ? rig.kneeY + 0.1 : rig.hipY - 0.02;
+    const bottomY = g.kind === 'dress' ? rig.kneeY + 0.1 : rig.hipY - 0.05;
     const sections: Section[] = [
-      { center: new THREE.Vector3(0, bottomY + oy, 0), rx: rig.hipHalfW * e, rz: rig.hipHalfD * e },
+      // 下端はパンツの帯より内側に寄せ、重なり領域でパンツが外側になるようにする
+      { center: new THREE.Vector3(0, bottomY + oy, 0), rx: rig.hipHalfW * e * 0.95, rz: rig.hipHalfD * e * 0.95 },
       { center: new THREE.Vector3(0, rig.waistY + oy, 0), rx: rig.waistHalfW * e, rz: rig.waistHalfD * e },
       { center: new THREE.Vector3(0, rig.bustY + oy, 0), rx: rig.bustHalfW * (e + 0.03), rz: rig.bustHalfD * (e + 0.08) },
       { center: new THREE.Vector3(0, rig.shoulderY + oy, 0), rx: rig.shoulderHalf * 0.98, rz: rig.bustHalfD * e * 0.85, super: 1.4 },
@@ -83,24 +94,37 @@ export function buildGarment(rig: BodyRig, g: Garment, quality: 'high' | 'low'):
   }
 
   if (g.kind === 'pants') {
+    // 脚の実半径にゆとりを加えて衣服の突き抜けを防ぐ（legFitが無い場合は標準体型の値）
+    const lf: LegFit = legFit ?? {
+      thighTop: 0.0572 * rig.height,
+      thighMid: 0.049 * rig.height,
+      knee: 0.028 * rig.height,
+      calf: 0.0266 * rig.height,
+      ankle: 0.016 * rig.height,
+    };
+    const fit = (r: number) => Math.max(r, 0.014 * rig.height) * ease + 0.004 * rig.height;
+    const midThighY = (rig.crotchY + rig.kneeY) / 2 + 0.04;
+    const midCalfY = rig.kneeY - (rig.kneeY - rig.ankleY) * 0.3;
     for (const side of [-1, 1]) {
       const hx = side * rig.hipHalfW * 0.45;
       const sections: Section[] = [
-        { center: new THREE.Vector3(hx, rig.waistY - 0.01 + oy, 0), rx: rig.hipHalfW * 0.55 * ease, rz: rig.hipHalfD * 0.6 * ease },
-        { center: new THREE.Vector3(hx, rig.crotchY + oy, 0), rx: 0.055 * rig.height * ease, rz: 0.05 * rig.height * ease },
-        { center: new THREE.Vector3(hx, rig.kneeY + oy, 0), rx: 0.03 * rig.height * ease, rz: 0.03 * rig.height * ease },
-        { center: new THREE.Vector3(hx, rig.ankleY + 0.01 + oy, 0), rx: 0.02 * rig.height * ease, rz: 0.02 * rig.height * ease },
+        { center: new THREE.Vector3(hx, rig.crotchY + 0.02 + oy, 0), rx: fit(lf.thighTop), rz: fit(lf.thighTop * 0.9) },
+        { center: new THREE.Vector3(hx, midThighY + oy, 0.004), rx: fit(lf.thighMid), rz: fit(lf.thighMid * 0.92) },
+        { center: new THREE.Vector3(hx, rig.kneeY + oy, 0), rx: fit(lf.knee), rz: fit(lf.knee) },
+        { center: new THREE.Vector3(hx, midCalfY + oy, -0.006), rx: fit(lf.calf), rz: fit(lf.calf) },
+        { center: new THREE.Vector3(hx, rig.ankleY + 0.01 + oy, 0), rx: fit(lf.ankle) + 0.004 * rig.height, rz: fit(lf.ankle) + 0.004 * rig.height },
       ];
       const leg = new THREE.Mesh(loftSections(sections, radial / 2), mat);
       leg.userData.partId = g.id;
       group.add(leg);
     }
-    // 腰部の帯
+    // 腰〜股の帯：股下まで一体で覆い、脚の付け根の肌が露出しないようにする
     const belt = new THREE.Mesh(
       loftSections(
         [
-          { center: new THREE.Vector3(0, rig.waistY + 0.02 + oy, 0), rx: rig.waistHalfW * ease, rz: rig.waistHalfD * ease },
-          { center: new THREE.Vector3(0, rig.hipY + oy, 0), rx: rig.hipHalfW * ease, rz: rig.hipHalfD * ease },
+          { center: new THREE.Vector3(0, rig.waistY + 0.04 + oy, 0), rx: rig.waistHalfW * (ease + 0.06), rz: rig.waistHalfD * (ease + 0.06) },
+          { center: new THREE.Vector3(0, rig.hipY + oy, 0), rx: rig.hipHalfW * (ease + 0.06), rz: rig.hipHalfD * (ease + 0.06) },
+          { center: new THREE.Vector3(0, rig.crotchY + 0.006 + oy, 0), rx: rig.hipHalfW * (ease + 0.06) * 0.95, rz: rig.hipHalfD * (ease + 0.06) * 0.92 },
         ],
         radial,
         false,

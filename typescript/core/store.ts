@@ -84,6 +84,16 @@ function ensureClothed(clothing: ClothingState): ClothingState {
   return { ...clothing, garments };
 }
 
+/** 医療モードの初期状態：衣服データは保持したまま全て非着用にする */
+function unclothe(clothing: ClothingState): ClothingState {
+  return {
+    ...clothing,
+    garments: clothing.garments.map((g) => ({ ...g, visible: false })),
+    glasses: { ...clothing.glasses, visible: false },
+    accessories: clothing.accessories.map((a) => ({ ...a, visible: false })),
+  };
+}
+
 const HISTORY_LIMIT = 100;
 
 interface EditorState {
@@ -105,6 +115,14 @@ interface EditorState {
   focusPartRequest: string | null;
   quality: 'high' | 'low';
   webglFailed: boolean;
+  /** 本人再現の基準となる元写真（dataURL。プロジェクト保存に含まれる） */
+  sourcePhoto: string | null;
+  photoLandmarks: { x: number; y: number; label: string }[];
+  /** 元写真を3Dビューに重ね合わせ表示するか */
+  photoOverlayVisible: boolean;
+  photoOverlayOpacity: number;
+  /** 元写真を3Dビューと並列表示するか */
+  photoCompareVisible: boolean;
 
   past: Snapshot[];
   future: Snapshot[];
@@ -142,6 +160,10 @@ interface EditorState {
   clearFocusPartRequest: () => void;
   setQuality: (q: 'high' | 'low') => void;
   setWebglFailed: (v: boolean) => void;
+  setPhoto: (dataUrl: string | null, landmarks?: { x: number; y: number; label: string }[]) => void;
+  setPhotoOverlayVisible: (v: boolean) => void;
+  setPhotoOverlayOpacity: (v: number) => void;
+  setPhotoCompareVisible: (v: boolean) => void;
   loadSnapshot: (s: Snapshot) => void;
   copyPartParams: (fromId: string, toId: string) => void;
   resetAll: () => void;
@@ -176,15 +198,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   focusPartRequest: null,
   quality: 'high',
   webglFailed: false,
+  sourcePhoto: null,
+  photoLandmarks: [],
+  photoOverlayVisible: false,
+  photoOverlayOpacity: 0.5,
+  photoCompareVisible: false,
   past: [],
   future: [],
 
   setMode: (m) =>
-    set((s) => ({
-      mode: m,
-      // 医療モード（裸体可）から一般モードへ戻った際に着衣を保証
-      clothing: m === 'general' ? ensureClothed(s.clothing) : s.clothing,
-    })),
+    set((s) => {
+      if (s.mode === m) return {};
+      return {
+        mode: m,
+        // 一般モードへ戻った際は常時着衣を保証し、医療モードは非着衣を初期状態とする。
+        // 衣服の設定データ自体は保持されるため、医療モードで自由に再着用できる。
+        clothing: m === 'general' ? ensureClothed(s.clothing) : unclothe(s.clothing),
+      };
+    }),
   setUiLevel: (l) => set({ uiLevel: l }),
   selectPart: (id) => set({ selectedPart: id }),
 
@@ -343,6 +374,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearFocusPartRequest: () => set({ focusPartRequest: null }),
   setQuality: (q) => set({ quality: q }),
   setWebglFailed: (v) => set({ webglFailed: v }),
+  setPhoto: (dataUrl, landmarks) =>
+    set({
+      sourcePhoto: dataUrl,
+      photoLandmarks: landmarks ?? [],
+      // 写真を差し替えたら重ね合わせ・並列比較は一旦OFF
+      photoOverlayVisible: false,
+      photoCompareVisible: false,
+    }),
+  setPhotoOverlayVisible: (v) => set({ photoOverlayVisible: v }),
+  setPhotoOverlayOpacity: (v) => set({ photoOverlayOpacity: Math.min(1, Math.max(0, v)) }),
+  setPhotoCompareVisible: (v) => set({ photoCompareVisible: v }),
 
   loadSnapshot: (snap) =>
     set((s) =>
@@ -370,7 +412,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         parts: createDefaultParts(),
         globals: structuredClone(DEFAULT_GLOBALS),
         hair: structuredClone(DEFAULT_HAIR),
-        clothing: structuredClone(DEFAULT_CLOTHING),
+        clothing:
+          s.mode === 'general'
+            ? structuredClone(DEFAULT_CLOTHING)
+            : unclothe(structuredClone(DEFAULT_CLOTHING)),
       }),
     ),
 }));

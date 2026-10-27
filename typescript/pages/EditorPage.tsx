@@ -11,6 +11,7 @@ import { GlobalBodyPanel, HairPanel, ClothingPanel } from '../ui/BodyPanels';
 import { BottomPanel } from '../ui/BottomPanel';
 import { MeasurePanel, HairRemovalPanel, type MeasureMode } from '../ui/MedicalPanels';
 import { PhotoPanel } from '../ui/PhotoPanel';
+import { PhotoComparePane } from '../ui/PhotoComparePane';
 import { HelpModal } from '../ui/HelpModal';
 import { CAMERA_PRESETS } from '../engine/viewport';
 
@@ -25,8 +26,6 @@ export default function EditorPage({ mode }: Props) {
   const [showHelp, setShowHelp] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
   const [status, setStatus] = useState('');
-  const [sourcePhoto, setSourcePhoto] = useState<string | undefined>();
-  const [photoLandmarks, setPhotoLandmarks] = useState<{ x: number; y: number; label: string }[]>([]);
   const [measureMode, setMeasureMode] = useState<MeasureMode>('off');
   const [pickedPoints, setPickedPoints] = useState<THREE.Vector3[]>([]);
 
@@ -92,8 +91,6 @@ export default function EditorPage({ mode }: Props) {
       <Toolbar
         viewportRef={viewportRef}
         mode={mode}
-        sourcePhoto={sourcePhoto}
-        photoLandmarks={photoLandmarks}
         onOpenHelp={() => setShowHelp(true)}
         onOpenPhoto={() => setShowPhoto(true)}
         onStatus={onStatus}
@@ -111,6 +108,7 @@ export default function EditorPage({ mode }: Props) {
         <div className="panel-center">
           <ViewportPane viewportRef={viewportRef} pickMode={measureMode !== 'off'} onPickPoint={handlePickPoint} />
           {store.compareScenarioId && <ViewportPane compare />}
+          {store.photoCompareVisible && store.sourcePhoto && <PhotoComparePane />}
         </div>
         <div className="panel-right">
           <div className="tabs">
@@ -156,11 +154,7 @@ export default function EditorPage({ mode }: Props) {
         <PhotoPanel
           onClose={() => setShowPhoto(false)}
           onStatus={onStatus}
-          initialPhoto={sourcePhoto}
-          onPhotoLoaded={(dataUrl, landmarks) => {
-            setSourcePhoto(dataUrl);
-            setPhotoLandmarks(landmarks);
-          }}
+          initialPhoto={store.sourcePhoto ?? undefined}
         />
       )}
     </div>

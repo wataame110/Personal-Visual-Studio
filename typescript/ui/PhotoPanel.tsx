@@ -1,16 +1,22 @@
 // 写真取込・解析パネル（MediaPipe による端末内解析＋手動補正）
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { analyzePhoto, landmarksToGuideParams, checkModelAvailability, type PhotoAnalysisResult, type Landmark2D } from '../photo/analysis';
+import { analyzePhoto, landmarksToGuideParams, checkModelAvailability, sampleIdentityColors, type PhotoAnalysisResult } from '../photo/analysis';
 import { useEditorStore } from '../core/store';
+
+/** 肌色を適用する皮膚部位（眼球・唇・粘膜系は本人固有の色調を別途編集するため除外） */
+const SKIN_PART_IDS = [
+  'head', 'nose', 'earL', 'earR', 'neck', 'chest', 'breastL', 'breastR',
+  'abdomen', 'waist', 'pelvis', 'upperArmL', 'upperArmR', 'forearmL', 'forearmR',
+  'handL', 'handR', 'thighL', 'thighR', 'calfL', 'calfR', 'footL', 'footR', 'monsPubis',
+];
 
 interface Props {
   onClose: () => void;
   onStatus: (msg: string) => void;
-  onPhotoLoaded: (dataUrl: string, landmarks: { x: number; y: number; label: string }[]) => void;
   initialPhoto?: string;
 }
 
-export function PhotoPanel({ onClose, onStatus, onPhotoLoaded, initialPhoto }: Props) {
+export function PhotoPanel({ onClose, onStatus, initialPhoto }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(initialPhoto ?? null);
   const [result, setResult] = useState<PhotoAnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -79,7 +85,7 @@ export function PhotoPanel({ onClose, onStatus, onPhotoLoaded, initialPhoto }: P
       setImageUrl(reader.result as string);
       setResult(null);
       setError('');
-      onPhotoLoaded(reader.result as string, []);
+      store.setPhoto(reader.result as string, []);
     };
     reader.readAsDataURL(file);
   };
@@ -91,7 +97,7 @@ export function PhotoPanel({ onClose, onStatus, onPhotoLoaded, initialPhoto }: P
     try {
       const r = await analyzePhoto(imgRef.current);
       setResult(r);
-      onPhotoLoaded(imageUrl!, [...r.faceLandmarks, ...r.poseLandmarks]);
+      store.setPhoto(imageUrl!, [...r.faceLandmarks, ...r.poseLandmarks]);
       onStatus(`解析が完了しました（顔 ${r.faceLandmarks.length} 点・姿勢 ${r.poseLandmarks.length} 点）。`);
     } catch (e) {
       setError(e instanceof Error ? e.message : '解析に失敗しました。');
@@ -135,13 +141,26 @@ export function PhotoPanel({ onClose, onStatus, onPhotoLoaded, initialPhoto }: P
         }
       }
     }
+    // 肌色・髪色を写真から抽出して反映（本人再現の基礎情報）
+    const colorNotes: string[] = [];
+    if (img) {
+      const colors = sampleIdentityColors(img, result);
+      if (colors.skinColor) {
+        for (const id of SKIN_PART_IDS) store.setPartColor(id, colors.skinColor);
+        colorNotes.push('肌色');
+      }
+      if (colors.hairColor) {
+        store.setHair({ color: colors.hairColor });
+        colorNotes.push('髪色');
+      }
+    }
     const h = Number(heightCm);
     if (Number.isFinite(h) && h >= 100 && h <= 230) {
       store.setGlobals({ height: h / 100 });
     }
     onStatus(
-      applied > 0
-        ? `初期ガイドをモデルに反映しました（${applied} 項目: ${guide.detectedItems.join('、') || '該当なし'}）。写真に写らない部位は推定値のままです。`
+      applied > 0 || colorNotes.length > 0
+        ? `本人の特徴をモデルに反映しました（形状 ${applied} 項目: ${guide.detectedItems.join('、') || '該当なし'}${colorNotes.length ? `／色情報: ${colorNotes.join('・')}` : ''}）。写真に写らない部位は推定値のままです。`
         : '反映できる項目がありませんでした。手動で編集してください。',
     );
     onClose();

@@ -10,14 +10,12 @@ import { ExportImageDialog } from './ExportImageDialog';
 interface Props {
   viewportRef: React.MutableRefObject<Viewport | null>;
   mode: 'general' | 'medical';
-  sourcePhoto?: string;
-  photoLandmarks?: { x: number; y: number; label: string }[];
   onOpenHelp: () => void;
   onOpenPhoto: () => void;
   onStatus: (msg: string) => void;
 }
 
-export function Toolbar({ viewportRef, mode, sourcePhoto, photoLandmarks, onOpenHelp, onOpenPhoto, onStatus }: Props) {
+export function Toolbar({ viewportRef, mode, onOpenHelp, onOpenPhoto, onStatus }: Props) {
   const store = useEditorStore();
   const auth = useAuthStore();
   const openFileRef = useRef<HTMLInputElement>(null);
@@ -41,8 +39,8 @@ export function Toolbar({ viewportRef, mode, sourcePhoto, photoLandmarks, onOpen
       measurements: store.measurements,
       hairRemoval: store.hairRemoval,
       camera: vp?.getCameraState() ?? { position: { x: 0, y: 1, z: 2.6 }, target: { x: 0, y: 0.95, z: 0 } },
-      sourcePhoto,
-      photoLandmarks,
+      sourcePhoto: store.sourcePhoto ?? undefined,
+      photoLandmarks: store.photoLandmarks.length > 0 ? store.photoLandmarks : undefined,
     });
     const blob = new Blob([serializeProject(project)], { type: 'application/json' });
     downloadBlob(blob, `pvs-project-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pvsproj`);
@@ -70,6 +68,8 @@ export function Toolbar({ viewportRef, mode, sourcePhoto, photoLandmarks, onOpen
         })
         .filter((s): s is NonNullable<typeof s> => s !== null);
       useEditorStore.setState({ scenarios: restored });
+      // 元写真・ランドマークを復元（本人再現の比較基準）
+      store.setPhoto(project.sourcePhoto ?? null, project.photoLandmarks ?? []);
       viewportRef.current?.setCameraState(project.camera);
       onStatus(`プロジェクトを読み込みました（保存日時: ${new Date(project.savedAt).toLocaleString('ja-JP')}）。`);
     } catch (e) {
