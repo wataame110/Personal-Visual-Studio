@@ -66,9 +66,9 @@
   "profiles": [
     {
       "id": "MED-001",
-      "userId": "user-001",
-      "loginPassword": "（ログインパスワード）",
-      "permitPassword": "（使用許可パスワード）",
+      "userId": "user001",
+      "loginPassword": "user001",
+      "permitPassword": "user001",
       "enabled": true,
       "role": "medical",
       "version": 1
