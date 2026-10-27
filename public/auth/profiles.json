@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-27T06:23:49.754Z",
+  "profiles": [
+    {
+      "id": "MED-001",
+      "userId": "user-001",
+      "loginPassword": "login-32d76fc8",
+      "permitPassword": "permit-ff045a2e",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-002",
+      "userId": "user-002",
+      "loginPassword": "login-3f1de281",
+      "permitPassword": "permit-8084741b",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-003",
+      "userId": "user-003",
+      "loginPassword": "login-201c1f09",
+      "permitPassword": "permit-01c2cdcc",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-004",
+      "userId": "user-004",
+      "loginPassword": "login-a55c6d10",
+      "permitPassword": "permit-efd7a9cd",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-005",
+      "userId": "user-005",
+      "loginPassword": "login-6c761738",
+      "permitPassword": "permit-79fb8fd0",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-006",
+      "userId": "user-006",
+      "loginPassword": "login-6b1c150f",
+      "permitPassword": "permit-a483ec6a",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-007",
+      "userId": "user-007",
+      "loginPassword": "login-f0f3aa06",
+      "permitPassword": "permit-5263bd9f",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-008",
+      "userId": "user-008",
+      "loginPassword": "login-892b5fe7",
+      "permitPassword": "permit-bea9bfaf",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-009",
+      "userId": "user-009",
+      "loginPassword": "login-06ae398d",
+      "permitPassword": "permit-1e7ca4ab",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-010",
+      "userId": "user-010",
+      "loginPassword": "login-f02752c4",
+      "permitPassword": "permit-dbbf7b5e",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-011",
+      "userId": "user-011",
+      "loginPassword": "login-34674839",
+      "permitPassword": "permit-c543761c",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-012",
+      "userId": "user-012",
+      "loginPassword": "login-66bb4829",
+      "permitPassword": "permit-70c10968",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-013",
+      "userId": "user-013",
+      "loginPassword": "login-e89c6790",
+      "permitPassword": "permit-b066c50d",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-014",
+      "userId": "user-014",
+      "loginPassword": "login-7275ff58",
+      "permitPassword": "permit-fc298611",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-015",
+      "userId": "user-015",
+      "loginPassword": "login-48d9020c",
+      "permitPassword": "permit-ce118e3b",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-016",
+      "userId": "user-016",
+      "loginPassword": "login-fc721e96",
+      "permitPassword": "permit-04f84359",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-017",
+      "userId": "user-017",
+      "loginPassword": "login-e3410591",
+      "permitPassword": "permit-21bf7afb",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-018",
+      "userId": "user-018",
+      "loginPassword": "login-e001d895",
+      "permitPassword": "permit-c8444d7f",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-019",
+      "userId": "user-019",
+      "loginPassword": "login-2e4308a3",
+      "permitPassword": "permit-92cb521b",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-020",
+      "userId": "user-020",
+      "loginPassword": "login-a1994bc9",
+      "permitPassword": "permit-27afcb99",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-021",
+      "userId": "user-021",
+      "loginPassword": "login-b6e92833",
+      "permitPassword": "permit-31b72e48",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-022",
+      "userId": "user-022",
+      "loginPassword": "login-dd513496",
+      "permitPassword": "permit-9b95d218",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-023",
+      "userId": "user-023",
+      "loginPassword": "login-77bf45a9",
+      "permitPassword": "permit-3ebd81b3",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-024",
+      "userId": "user-024",
+      "loginPassword": "login-ae9a77e7",
+      "permitPassword": "permit-ef513061",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-025",
+      "userId": "user-025",
+      "loginPassword": "login-7e6df5ce",
+      "permitPassword": "permit-669a8e0e",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-026",
+      "userId": "user-026",
+      "loginPassword": "login-c5cea864",
+      "permitPassword": "permit-0f96f9de",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-027",
+      "userId": "user-027",
+      "loginPassword": "login-29a69c0c",
+      "permitPassword": "permit-0f207480",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-028",
+      "userId": "user-028",
+      "loginPassword": "login-78e152f7",
+      "permitPassword": "permit-dc00a039",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-029",
+      "userId": "user-029",
+      "loginPassword": "login-e4fa6e03",
+      "permitPassword": "permit-199ab680",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    },
+    {
+      "id": "MED-030",
+      "userId": "user-030",
+      "loginPassword": "login-6e5ca46c",
+      "permitPassword": "permit-75e4af54",
+      "enabled": true,
+      "role": "medical",
+      "version": 1
+    }
+  ]
+}
