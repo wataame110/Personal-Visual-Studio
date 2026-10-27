@@ -9,7 +9,6 @@ const baseInput = () => ({
   parts: createDefaultParts(),
   hair: structuredClone(DEFAULTS.hair),
   clothing: structuredClone(DEFAULTS.clothing),
-  pose: structuredClone(DEFAULTS.pose),
   scenarios: [],
   scenarioData: {},
   annotations: [],
@@ -36,7 +35,7 @@ describe('プロジェクトの保存・復元', () => {
     expect(restored.parts.eyeR.morph.tilt).toBe(-5);
     expect(restored.globals.height).toBe(1.72);
     expect(restored.hair.color).toBe('#ff0000');
-    expect(restored.version).toBe(2);
+    expect(restored.version).toBe(1);
   });
 
   it('破損ファイルはエラーになる', () => {

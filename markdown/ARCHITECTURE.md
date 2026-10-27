@@ -4,6 +4,7 @@
 
 - React 18 + TypeScript + Vite（静的サイト。サーバーサイド処理なし）
 - Three.js による WebGL レンダリング
+- `models/cc0/` のCC0人体GLBを外部参照・GLB入出力の検証資産として管理
 - zustand による状態管理（イミュータブルなスナップショット＋Undo/Redo）
 - MediaPipe Tasks Vision（顔・姿勢ランドマーク。WASM・モデルは同梱配布）
 - Vitest（単体テスト）/ Playwright（E2E）
@@ -18,12 +19,15 @@ typescript/
     parts.ts      部位ツリーと部位固有パラメータの定義
     store.ts      状態管理・Undo/Redo・シナリオ
     project.ts    .pvsproj の保存・復元・バージョン管理
-    skeleton.ts   2D関節骨格システム（絶対角度FK）
-    poses.ts      ポーズプリセットDB（立ち〜医療体位・性的体位）
-    montage.ts    Canvas 2D モンタージュ合成エンジン
+  engine/
+    bodyBuilder.ts  3D人体メッシュの構築
+    geometry.ts     連続曲面・ロフト形状
+    materials.ts    PBR材質
+    viewport.ts     OrbitControls・GLB入出力・選択
+    parts/          頭部・胴体・四肢・髪・衣服
   auth/
     authStore.ts  二画面認証の状態管理
-  ui/             共通UIコンポーネント（PosePanel 等）
+  ui/             共通UIコンポーネント
   pages/          画面（ホーム・エディタ・認証）
   tests/          Vitest 単体テスト
 css/
@@ -36,7 +40,7 @@ javascript/
 markdown/         ドキュメント
 json/
   auth/profiles.json     医療版プロファイル（配信対象・開発者が編集）
-models/           MediaPipe モデル（任意機能の素材）
+  models/           MediaPipeモデルとCC0人体GLB
 wasm/             MediaPipe WASM ランタイム（任意機能の素材）
 ```
 
@@ -45,6 +49,7 @@ wasm/             MediaPipe WASM ランタイム（任意機能の素材）
 ### パラメトリックメッシュ
 
 - 人体は単純な球体・円柱の組み合わせではなく、**断面ロフト（連続曲面）**で構築
+- CC0の高精細GLBは `models/cc0/` に出典・ハッシュ付きで隔離管理
 - `loftSections()` は任意経路に沿った平行輸送フレームで断面を配置し、
   湾曲（陰茎の湾曲など）をモデル全体の回転ではなく**経路変形**として表現する
 - 部位パラメータは `PartState.morph` に格納され、変更時に対象部位を再生成
@@ -84,7 +89,7 @@ wasm/             MediaPipe WASM ランタイム（任意機能の素材）
 ### 新しい部位の追加
 
 1. `typescript/core/parts.ts` の `PART_DEFS` に部位定義（パラメータ含む）を追加
-2. `typescript/core/montage.ts` に描画処理を追加
+2. `typescript/engine/parts/` にThree.jsの部位ビルダーを追加
 4. テストを追加
 
 ### 新しい髪型・衣服の追加

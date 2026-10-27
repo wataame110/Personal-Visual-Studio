@@ -25,12 +25,14 @@
 | --- | --- | --- |
 | `models/face_landmarker.task` | Google MediaPipe Models | MediaPipe Models 配布条件に従う（再配布条件は提供元の最新情報を確認すること） |
 | `models/pose_landmarker_lite.task` | Google MediaPipe Models | 同上 |
+| `models/cc0/human-base-rigged.glb` | Innerscene（MakeHuman/MPFB CC0 assets） | CC0。出典・取得URL・SHA-256は `models/cc0/README.md` を参照 |
 
 ## 3Dアセットについて
 
-- 本アプリケーションの人体モデルは**すべてプロシージャル生成**（コードによるパラメトリック生成）であり、外部の3D人体アセットを同梱していません。
-- そのため第三者の3Dモデルに関する商用利用・再配布・改変の制約は発生しません。
-- 一方で、解剖学的な精密さは専門の3D人体アセットに及ばない場合があります。`markdown/LIMITATIONS.md` を参照してください。
+- 編集用の人体モデルはThree.jsによるプロシージャル生成（コードによるパラメトリック生成）です。
+- `models/cc0/human-base-rigged.glb` は、InnersceneがMakeHuman/MPFBのCC0アセットを基に公開したCC0の参考・インポート用GLBです。配布条件は同梱READMEと配布元の最新規約を確認してください。
+- Three.jsのコード生成部分と、同梱GLBの第三者アセット部分はライセンス上分離して管理しています。
+- 同梱GLBを編集用メッシュへ置換する場合は、形状編集・衣服強制・医療部位・GLB再出力の各機能をブラウザ実機で再検証してください。
 - 利用者が読み込んだGLBモデル・商品画像の権利処理は利用者の責任で行ってください。
 
 ## ライセンス表記の全文

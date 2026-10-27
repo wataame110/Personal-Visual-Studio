@@ -2,11 +2,28 @@
 import { useEditorStore } from '../core/store';
 import type { Garment } from '../core/types';
 
+/** 上半身を覆う衣服カテゴリ（一般モードの常時着衣保証と同じ定義） */
+const UPPER_KINDS: Garment['kind'][] = ['tops', 'outer', 'dress'];
+/** 下半身を覆う衣服カテゴリ */
+const LOWER_KINDS: Garment['kind'][] = ['pants', 'skirt', 'dress'];
+
 export function GlobalBodyPanel() {
   const store = useEditorStore();
   const g = store.globals;
   return (
     <div>
+      <div className="section-title">人物ベース（テンプレート）</div>
+      <div className="param-row">
+        <label>性別体型ベース</label>
+        <select value={g.sex} onChange={(e) => store.setGlobals({ sex: e.target.value as typeof g.sex })} aria-label="性別体型ベース">
+          <option value="female">女性型</option>
+          <option value="male">男性型</option>
+          <option value="custom">カスタム（医療：両方の部位を編集可能）</option>
+        </select>
+        <div className="small" style={{ marginTop: 4 }}>
+          切り替えても編集中の部位パラメータ・髪・衣服は保持されます。
+        </div>
+      </div>
       <div className="section-title">全身の基本設定</div>
       <div className="param-row">
         <div className="param-head"><label>身長（実測値を入力）</label><span className="param-value">{(g.height * 100).toFixed(1)} cm</span></div>
@@ -27,14 +44,6 @@ export function GlobalBodyPanel() {
         <div className="param-head"><label>姿勢（前傾〜後傾）</label><span className="param-value">{g.posture.toFixed(2)}</span></div>
         <input type="range" min={-1} max={1} step={0.01} value={g.posture}
           onChange={(e) => store.setGlobals({ posture: Number(e.target.value) })} aria-label="姿勢" />
-      </div>
-      <div className="param-row">
-        <label>基礎体型</label>
-        <select value={g.sex} onChange={(e) => store.setGlobals({ sex: e.target.value as typeof g.sex })} aria-label="基礎体型">
-          <option value="female">女性体型</option>
-          <option value="male">男性体型</option>
-          <option value="custom">カスタム（医療：両方の部位を編集可能）</option>
-        </select>
       </div>
     </div>
   );
@@ -98,9 +107,24 @@ const GARMENT_LABELS: Record<Garment['kind'], string> = {
 export function ClothingPanel({ onStatus }: { onStatus: (msg: string) => void }) {
   const store = useEditorStore();
   const c = store.clothing;
+  const general = store.mode === 'general';
 
   const updateGarment = (id: string, patch: Partial<Garment>) => {
     store.setClothing({ garments: c.garments.map((g) => (g.id === id ? { ...g, ...patch } : g)) });
+  };
+
+  /** 一般モードで最後の上半身/下半身衣服を外そうとした場合にブロックする */
+  const trySetVisible = (g: Garment, visible: boolean) => {
+    if (general && !visible) {
+      const others = c.garments.filter((x) => x.id !== g.id);
+      const upperOk = others.some((x) => x.visible && UPPER_KINDS.includes(x.kind)) || UPPER_KINDS.includes(g.kind) === false;
+      const lowerOk = others.some((x) => x.visible && LOWER_KINDS.includes(x.kind)) || LOWER_KINDS.includes(g.kind) === false;
+      if (!(upperOk && lowerOk)) {
+        onStatus('一般モードでは上半身・下半身の衣服をすべて外すことはできません（常時着衣）。');
+        return;
+      }
+    }
+    updateGarment(g.id, { visible });
   };
 
   const loadReferenceImage = (id: string, file: File) => {
@@ -115,14 +139,21 @@ export function ClothingPanel({ onStatus }: { onStatus: (msg: string) => void })
   return (
     <div>
       <div className="section-title">衣服</div>
-      <div className="notice info">
-        見た目の試着シミュレーションです。実際のサイズ・フィット感の予測ではありません。
-      </div>
+      {general && (
+        <div className="notice info">
+          一般モードでは常時着衣です。上半身・下半身いずれかの衣服を必ず着用します（すべて外すことはできません）。
+        </div>
+      )}
+      {!general && (
+        <div className="notice info">
+          見た目の試着シミュレーションです。実際のサイズ・フィット感の予測ではありません。
+        </div>
+      )}
       {c.garments.map((g) => (
         <div key={g.id} className="param-row" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 8 }}>
           <div className="param-head">
             <label>
-              <input type="checkbox" checked={g.visible} onChange={(e) => updateGarment(g.id, { visible: e.target.checked })} />
+              <input type="checkbox" checked={g.visible} onChange={(e) => trySetVisible(g, e.target.checked)} />
               {' '}{GARMENT_LABELS[g.kind]}
             </label>
             <input type="color" value={g.color} onChange={(e) => updateGarment(g.id, { color: e.target.value })} aria-label={`${GARMENT_LABELS[g.kind]}の色`} />

@@ -5,17 +5,15 @@ import type {
   BodyGlobals,
   HairConfig,
   ClothingState,
+  Garment,
   Annotation,
   Measurement,
   HairRemovalDesign,
   Scenario,
   Vec3,
   Provenance,
-  PoseState,
-  CameraView,
 } from './types';
 import { createDefaultParts } from './parts';
-import { getPoseById } from './poses';
 
 export type AppMode = 'general' | 'medical';
 export type UiLevel = 'beginner' | 'expert';
@@ -25,14 +23,7 @@ export interface Snapshot {
   globals: BodyGlobals;
   hair: HairConfig;
   clothing: ClothingState;
-  pose: PoseState;
 }
-
-const DEFAULT_POSE: PoseState = {
-  poseId: 'stand-front',
-  customJointAngles: {},
-  camera: { azimuth: 0, elevation: 0, distance: 1 },
-};
 
 const DEFAULT_GLOBALS: BodyGlobals = {
   height: 1.65,
@@ -56,9 +47,9 @@ const DEFAULT_HAIR: HairConfig = {
 
 const DEFAULT_CLOTHING: ClothingState = {
   garments: [
-    { id: 'g-tops', kind: 'tops', visible: false, color: '#88aacc', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
+    { id: 'g-tops', kind: 'tops', visible: true, color: '#88aacc', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
     { id: 'g-outer', kind: 'outer', visible: false, color: '#445566', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
-    { id: 'g-pants', kind: 'pants', visible: false, color: '#33415c', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
+    { id: 'g-pants', kind: 'pants', visible: true, color: '#33415c', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
     { id: 'g-skirt', kind: 'skirt', visible: false, color: '#aa5577', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
     { id: 'g-dress', kind: 'dress', visible: false, color: '#9966aa', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
     { id: 'g-shoes', kind: 'shoes', visible: false, color: '#333333', pattern: 'solid', offsetY: 0, useReferenceTexture: false },
@@ -71,6 +62,28 @@ const DEFAULT_CLOTHING: ClothingState = {
   ],
 };
 
+/** 上半身を覆う衣服カテゴリ */
+const UPPER_KINDS: Garment['kind'][] = ['tops', 'outer', 'dress'];
+/** 下半身を覆う衣服カテゴリ */
+const LOWER_KINDS: Garment['kind'][] = ['pants', 'skirt', 'dress'];
+
+/**
+ * 一般モードの常時着衣保証：上半身・下半身のいずれかの衣服が必ず着用された状態に補正する。
+ * ・初期状態・保存・読込・Undo・Redo・シナリオ適用・モード切替のすべてで呼ばれる
+ * ・衣服の生成に失敗した場合も状態上は着用済みとして扱われる
+ */
+function ensureClothed(clothing: ClothingState): ClothingState {
+  const upperOn = clothing.garments.some((g) => g.visible && UPPER_KINDS.includes(g.kind));
+  const lowerOn = clothing.garments.some((g) => g.visible && LOWER_KINDS.includes(g.kind));
+  if (upperOn && lowerOn) return clothing;
+  const garments = clothing.garments.map((g) => {
+    if (!upperOn && g.kind === 'tops') return { ...g, visible: true };
+    if (!lowerOn && g.kind === 'pants') return { ...g, visible: true };
+    return g;
+  });
+  return { ...clothing, garments };
+}
+
 const HISTORY_LIMIT = 100;
 
 interface EditorState {
@@ -80,7 +93,6 @@ interface EditorState {
   globals: BodyGlobals;
   hair: HairConfig;
   clothing: ClothingState;
-  pose: PoseState;
   annotations: Annotation[];
   measurements: Measurement[];
   hairRemoval: HairRemovalDesign[];
@@ -109,10 +121,6 @@ interface EditorState {
   setGlobals: (g: Partial<BodyGlobals>) => void;
   setHair: (h: Partial<HairConfig>) => void;
   setClothing: (c: Partial<ClothingState>) => void;
-  setPose: (p: Partial<PoseState>) => void;
-  setJointAngle: (jointId: string, angle: number) => void;
-  setCamera: (c: Partial<CameraView>) => void;
-  applyPoseById: (poseId: string) => void;
   addAnnotation: (a: Annotation) => void;
   removeAnnotation: (id: string) => void;
   addMeasurement: (m: Measurement) => void;
@@ -140,7 +148,7 @@ interface EditorState {
 }
 
 function takeSnapshot(s: EditorState): Snapshot {
-  return structuredClone({ parts: s.parts, globals: s.globals, hair: s.hair, clothing: s.clothing, pose: s.pose });
+  return structuredClone({ parts: s.parts, globals: s.globals, hair: s.hair, clothing: s.clothing });
 }
 
 /** 状態を変更するすべての操作で呼び出し、履歴に現在状態を積む */
@@ -157,7 +165,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   globals: structuredClone(DEFAULT_GLOBALS),
   hair: structuredClone(DEFAULT_HAIR),
   clothing: structuredClone(DEFAULT_CLOTHING),
-  pose: structuredClone(DEFAULT_POSE),
   annotations: [],
   measurements: [],
   hairRemoval: [],
@@ -172,7 +179,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   past: [],
   future: [],
 
-  setMode: (m) => set({ mode: m }),
+  setMode: (m) =>
+    set((s) => ({
+      mode: m,
+      // 医療モード（裸体可）から一般モードへ戻った際に着衣を保証
+      clothing: m === 'general' ? ensureClothed(s.clothing) : s.clothing,
+    })),
   setUiLevel: (l) => set({ uiLevel: l }),
   selectPart: (id) => set({ selectedPart: id }),
 
@@ -233,26 +245,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setGlobals: (g) => set((s) => withHistory(s, { globals: { ...s.globals, ...g } })),
   setHair: (h) => set((s) => withHistory(s, { hair: { ...s.hair, ...h } })),
-  setClothing: (c) => set((s) => withHistory(s, { clothing: { ...s.clothing, ...c } })),
-
-  setPose: (p) => set((s) => withHistory(s, { pose: { ...s.pose, ...p } })),
-  setJointAngle: (jointId, angle) =>
+  setClothing: (c) =>
     set((s) => {
-      const customJointAngles = { ...s.pose.customJointAngles, [jointId]: angle };
-      return withHistory(s, { pose: { ...s.pose, customJointAngles } });
-    }),
-  setCamera: (c) => set((s) => withHistory(s, { pose: { ...s.pose, camera: { ...s.pose.camera, ...c } } })),
-  applyPoseById: (poseId) =>
-    set((s) => {
-      const pose = getPoseById(poseId);
-      if (!pose) return {};
-      return withHistory(s, {
-        pose: {
-          poseId,
-          customJointAngles: {},
-          camera: { ...pose.camera },
-        },
-      });
+      const merged = { ...s.clothing, ...c };
+      return withHistory(s, { clothing: s.mode === 'general' ? ensureClothed(merged) : merged });
     }),
 
   addAnnotation: (a) => set((s) => ({ annotations: [...s.annotations, a] })),
@@ -271,7 +267,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         parts: prev.parts,
         globals: prev.globals,
         hair: prev.hair,
-        clothing: prev.clothing,
+        clothing: s.mode === 'general' ? ensureClothed(prev.clothing) : prev.clothing,
       };
     }),
 
@@ -285,7 +281,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         parts: next.parts,
         globals: next.globals,
         hair: next.hair,
-        clothing: next.clothing,
+        clothing: s.mode === 'general' ? ensureClothed(next.clothing) : next.clothing,
       };
     }),
 
@@ -303,7 +299,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: snap.globals,
         hair: snap.hair,
         clothing: snap.clothing,
-        pose: snap.pose,
         annotations: structuredClone(s.annotations),
       };
       return { scenarios: [...s.scenarios, sc] };
@@ -317,8 +312,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         parts: structuredClone(sc.parts),
         globals: structuredClone(sc.globals),
         hair: structuredClone(sc.hair),
-        clothing: structuredClone(sc.clothing),
-        pose: structuredClone(sc.pose),
+        clothing: s.mode === 'general' ? ensureClothed(structuredClone(sc.clothing)) : structuredClone(sc.clothing),
       });
     }),
 
@@ -356,8 +350,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         parts: structuredClone(snap.parts),
         globals: structuredClone(snap.globals),
         hair: structuredClone(snap.hair),
-        clothing: structuredClone(snap.clothing),
-        pose: structuredClone(snap.pose),
+        clothing: s.mode === 'general' ? ensureClothed(structuredClone(snap.clothing)) : structuredClone(snap.clothing),
       }),
     ),
 
@@ -378,9 +371,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: structuredClone(DEFAULT_GLOBALS),
         hair: structuredClone(DEFAULT_HAIR),
         clothing: structuredClone(DEFAULT_CLOTHING),
-        pose: structuredClone(DEFAULT_POSE),
       }),
     ),
 }));
 
-export const DEFAULTS = { globals: DEFAULT_GLOBALS, hair: DEFAULT_HAIR, clothing: DEFAULT_CLOTHING, pose: DEFAULT_POSE };
+export const DEFAULTS = { globals: DEFAULT_GLOBALS, hair: DEFAULT_HAIR, clothing: DEFAULT_CLOTHING };

@@ -1,71 +1,9 @@
-// 基本型定義：2Dモンタージュ写真生成のパラメータ構造
+// 基本型定義：3D人物モデルのパラメータ構造
 
 export interface Vec3 {
   x: number;
   y: number;
   z: number;
-}
-
-/** 2D平面上の点 */
-export interface Vec2 {
-  x: number;
-  y: number;
-}
-
-/** 関節の定義 */
-export interface Joint {
-  id: string;
-  label: string;
-  parent?: string;
-  /** 基準位置（直立時、正規化座標 0..1） */
-  basePos: Vec2;
-  /** 現在の位置（正規化座標 0..1） */
-  pos: Vec2;
-  /** 親からの相対回転角度（度） */
-  angle: number;
-  /** 基準の角度（直立時） */
-  baseAngle: number;
-  /** 長さ（親からの距離、正規化） */
-  length: number;
-}
-
-/** ポーズ定義 */
-export interface Pose {
-  id: string;
-  label: string;
-  category: PoseCategory;
-  /** 医療モードでのみ表示 */
-  medicalOnly?: boolean;
-  /** 性的な内容を含む */
-  adultOnly?: boolean;
-  /** 関節角度の上書き（関節ID→角度） */
-  jointAngles: Record<string, number>;
-  /** カメラ視点 */
-  camera: CameraView;
-}
-
-export type PoseCategory =
-  | 'standing'      // 立ち
-  | 'sitting'       // 座り
-  | 'walking'       // 歩き
-  | 'running'       // 走り
-  | 'lying'         // 横になる
-  | 'gesture'       // 手のジェスチャー
-  | 'sports'        // スポーツ
-  | 'dance'         // ダンス
-  | 'yoga'          // ヨガ・柔軟
-  | 'medical'       // 医療体位
-  | 'sexual'        // 性的体位
-  | 'custom';       // カスタム
-
-/** カメラ視点 */
-export interface CameraView {
-  /** 正面からの回転角度（度）0=正面, 90=右側面, 180=背面, 270=左側面 */
-  azimuth: number;
-  /** 仰角（度）0=水平, 正=上から, 負=下から */
-  elevation: number;
-  /** 距離（倍率）1=標準 */
-  distance: number;
 }
 
 /** 情報の由来区分（プライバシー・医療情報管理要件） */
@@ -137,16 +75,6 @@ export interface BodyGlobals {
   posture: number; // -1..1 姿勢（前傾/後傾）
 }
 
-/** 現在のポーズ状態 */
-export interface PoseState {
-  /** 選択中のポーズID */
-  poseId: string;
-  /** カスタム関節角度（プリセットからの変更分） */
-  customJointAngles: Record<string, number>;
-  /** カメラ視点 */
-  camera: CameraView;
-}
-
 /** 比較案（シナリオ） */
 export interface Scenario {
   id: string;
@@ -156,7 +84,6 @@ export interface Scenario {
   globals: BodyGlobals;
   hair: HairConfig;
   clothing: ClothingState;
-  pose: PoseState;
   annotations: Annotation[];
 }
 
@@ -235,9 +162,8 @@ export interface ProjectFile {
   parts: PartStateMap;
   hair: HairConfig;
   clothing: ClothingState;
-  pose: PoseState;
   scenarios: { id: string; name: string; createdAt: number }[];
-  scenarioData: Record<string, { parts: PartStateMap; globals: BodyGlobals; hair: HairConfig; clothing: ClothingState; pose: PoseState }>;
+  scenarioData: Record<string, { parts: PartStateMap; globals: BodyGlobals; hair: HairConfig; clothing: ClothingState }>;
   annotations: Annotation[];
   measurements: Measurement[];
   hairRemoval: HairRemovalDesign[];
@@ -248,4 +174,4 @@ export interface ProjectFile {
   checkpoints: { label: string; parts: PartStateMap; globals: BodyGlobals }[];
 }
 
-export const PROJECT_VERSION = 2;
+export const PROJECT_VERSION = 1;
