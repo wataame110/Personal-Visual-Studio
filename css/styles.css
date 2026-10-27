@@ -219,3 +219,35 @@ kbd {
 .statusbar { display: flex; gap: 16px; font-size: 12px; color: var(--text-dim); align-items: center; }
 .progress-bar { height: 6px; background: #1b1f27; border-radius: 3px; overflow: hidden; }
 .progress-bar > div { height: 100%; background: var(--accent); transition: width 0.2s; }
+
+/* ---- 写真編集ページ ---- */
+.photo-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; text-align: center; gap: 12px;
+}
+.photo-empty p { max-width: 640px; color: var(--text-dim); font-size: 13px; }
+
+.photo-editor-main {
+  grid-template-areas: 'left center right' 'bottom bottom bottom';
+  grid-template-columns: 240px 1fr 280px;
+}
+.photo-canvas-pane {
+  display: flex; align-items: stretch; justify-content: center; gap: 4px;
+  background: #14171d; overflow: auto; padding: 8px;
+}
+.photo-canvas-wrap {
+  position: relative; flex: 0 1 auto; display: flex; align-items: center;
+  justify-content: center; min-width: 0; min-height: 0;
+}
+.photo-canvas-wrap canvas {
+  max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+  border: 1px solid var(--border); border-radius: 4px; background: #000;
+}
+.mask-overlay-canvas {
+  position: absolute; inset: 0; width: 100% !important; height: 100% !important;
+  pointer-events: none; border: none !important; background: transparent !important;
+}
+.compare-label {
+  position: absolute; top: 6px; left: 6px; z-index: 2; font-size: 11px;
+  background: rgba(0,0,0,0.6); color: #fff; padding: 2px 8px; border-radius: 4px;
+}

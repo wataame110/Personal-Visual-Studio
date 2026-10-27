@@ -15,6 +15,11 @@ const MODELS = [
     url: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
     out: 'models/pose_landmarker_lite.task',
   },
+  {
+    // 領域分割（髪/顔肌/体肌/衣服の自動分離）用。Google 公式配布。
+    url: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite',
+    out: 'models/selfie_multiclass_256x256.tflite',
+  },
 ];
 
 function download(url, out) {
@@ -40,8 +45,9 @@ function download(url, out) {
 }
 
 // WASM ランタイムを node_modules から同梱
+// アプリは実行時に `<base>mediapipe/wasm/` から読み込む（vite.config.ts の copyAssetsPlugin が dist へ複製）
 const wasmSrc = 'node_modules/@mediapipe/tasks-vision/wasm';
-const wasmOut = 'wasm';
+const wasmOut = 'mediapipe/wasm';
 if (existsSync(wasmSrc)) {
   mkdirSync(wasmOut, { recursive: true });
   cpSync(wasmSrc, wasmOut, { recursive: true });

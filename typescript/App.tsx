@@ -2,19 +2,25 @@
 import { useEffect, useState } from 'react';
 import HomePage from './pages/HomePage';
 import EditorPage from './pages/EditorPage';
+import PhotoEditorPage from './pages/PhotoEditorPage';
 import { MedicalLoginStep1, MedicalLoginStep2 } from './pages/MedicalAuthPages';
 import { useAuthStore } from './auth/authStore';
 
+// 写真編集が主エディタ（photo / medical）。3Dモンタージュは追加入口（editor / medical-3d）。
 export type Route =
   | { name: 'home' }
+  | { name: 'photo' }
   | { name: 'editor' }
   | { name: 'medical-login' }
   | { name: 'medical-permit' }
-  | { name: 'medical' };
+  | { name: 'medical' }
+  | { name: 'medical-3d' };
 
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, '');
   switch (h) {
+    case 'photo':
+      return { name: 'photo' };
     case 'editor':
       return { name: 'editor' };
     case 'medical-login':
@@ -23,6 +29,8 @@ function parseHash(): Route {
       return { name: 'medical-permit' };
     case 'medical':
       return { name: 'medical' };
+    case 'medical-3d':
+      return { name: 'medical-3d' };
     default:
       return { name: 'home' };
   }
@@ -46,7 +54,7 @@ export default function App() {
 
   // 医療画面のガード：第1認証未通過なら第1画面へ、第2未通過なら第2画面へ
   useEffect(() => {
-    if (route.name === 'medical' && !auth.authenticatedProfileId) {
+    if ((route.name === 'medical' || route.name === 'medical-3d') && !auth.authenticatedProfileId) {
       navigate(auth.step1ProfileId ? 'medical-permit' : 'medical-login');
     } else if (route.name === 'medical-permit' && !auth.step1ProfileId) {
       navigate('medical-login');
@@ -54,6 +62,8 @@ export default function App() {
   }, [route, auth.authenticatedProfileId, auth.step1ProfileId]);
 
   switch (route.name) {
+    case 'photo':
+      return <PhotoEditorPage mode="general" />;
     case 'editor':
       return <EditorPage mode="general" />;
     case 'medical-login':
@@ -61,6 +71,8 @@ export default function App() {
     case 'medical-permit':
       return <MedicalLoginStep2 />;
     case 'medical':
+      return auth.authenticatedProfileId ? <PhotoEditorPage mode="medical" /> : null;
+    case 'medical-3d':
       return auth.authenticatedProfileId ? <EditorPage mode="medical" /> : null;
     default:
       return <HomePage />;

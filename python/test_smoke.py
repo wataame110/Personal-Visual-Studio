@@ -210,7 +210,7 @@ def test_glb_external_validation(page, base_url, tmp_path):
 def test_medical_editor_has_general_features(page, base_url, medical_credentials):
     """医療版が一般版の全機能（衣服タブ等）を使用できること"""
     # 医療認証（二画面）
-    page.goto(f"{base_url}#/medical")
+    page.goto(f"{base_url}#/medical-3d")
     page.wait_for_timeout(800)
     expect(page.get_by_text("第1認証")).to_be_visible()
     page.locator("#auth-userid").fill(medical_credentials["userId"])
@@ -220,6 +220,10 @@ def test_medical_editor_has_general_features(page, base_url, medical_credentials
     expect(page.get_by_text("第2認証")).to_be_visible()
     page.locator("#auth-permit").fill(medical_credentials["permitPassword"])
     page.get_by_role("button", name="医療モードを開始").click()
+    page.wait_for_timeout(1500)
+    # 認証後は医療ホーム（写真編集）が開く。3Dエディタへ遷移する
+    expect(page.get_by_text("医療モード：写真編集")).to_be_visible()
+    page.goto(f"{base_url}#/medical-3d")
     page.wait_for_timeout(1500)
     # 医療エディターが開く
     expect(page.locator(".panel-center canvas").first).to_be_visible()
@@ -258,8 +262,8 @@ def test_quality_screenshots(page, base_url, tmp_path):
 
 
 def open_medical_editor(page, base_url, medical_credentials):
-    """医療認証（二画面）を通過して医療エディターを開く"""
-    page.goto(f"{base_url}#/medical")
+    """医療認証（二画面）を通過して医療3Dエディターを開く"""
+    page.goto(f"{base_url}#/medical-3d")
     page.wait_for_timeout(800)
     page.locator("#auth-userid").fill(medical_credentials["userId"])
     page.locator("#auth-password").fill(medical_credentials["loginPassword"])
@@ -267,6 +271,9 @@ def open_medical_editor(page, base_url, medical_credentials):
     page.wait_for_timeout(800)
     page.locator("#auth-permit").fill(medical_credentials["permitPassword"])
     page.get_by_role("button", name="医療モードを開始").click()
+    page.wait_for_timeout(1500)
+    # 認証後は医療ホーム（写真編集）が開く。3Dエディタへ遷移する
+    page.goto(f"{base_url}#/medical-3d")
     page.wait_for_timeout(1500)
     expect(page.locator(".panel-center canvas").first).to_be_visible()
 
@@ -365,3 +372,154 @@ def test_photo_overlay_and_project_restore(page, base_url, tmp_path):
     page.wait_for_timeout(1000)
     # 写真が復元され比較コントロールが再び表示される
     expect(page.get_by_text("写真を重ねる")).to_be_visible()
+
+
+# ---- 写真編集エディタ（主エディタ） ----
+
+def open_photo_editor(page, base_url, tmp_path):
+    """写真編集ページを開き、テスト写真を読み込む"""
+    page.goto(f"{base_url}#/photo")
+    page.wait_for_timeout(800)
+    expect(page.get_by_text("本人の写真を取り込んで編集を開始")).to_be_visible()
+    photo = make_test_photo(tmp_path / "person.png")
+    page.locator("input[aria-label='写真ファイル']").set_input_files(str(photo))
+    page.wait_for_timeout(800)
+    expect(page.locator(".photo-canvas-pane canvas").first).to_be_visible()
+
+
+def canvas_pixel(page, x_frac, y_frac):
+    """編集結果キャンバスの指定相対位置の画素 [r,g,b] を読む"""
+    return page.evaluate(
+        """([xf, yf]) => {
+          const c = document.querySelector('.photo-canvas-pane canvas');
+          const d = c.getContext('2d').getImageData(
+            Math.floor(c.width * xf), Math.floor(c.height * yf), 1, 1).data;
+          return [d[0], d[1], d[2]];
+        }""",
+        [x_frac, y_frac],
+    )
+
+
+def paint_custom_mask_at_center(page):
+    """カスタム領域を選択し、キャンバス中央にブラシでマスクを描く"""
+    page.locator(".part-tree-item", has_text="カスタム").click()
+    page.get_by_role("button", name="範囲を追加").click()
+    canvas = page.locator(".photo-canvas-pane canvas").first
+    box = canvas.bounding_box()
+    cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(cx, cy)
+    page.mouse.down()
+    page.mouse.move(cx + 4, cy + 4)
+    page.mouse.up()
+    page.wait_for_timeout(300)
+
+
+def test_photo_editor_loads_photo(page, base_url, tmp_path):
+    """写真が読み込まれ編集キャンバスに描画される"""
+    open_photo_editor(page, base_url, tmp_path)
+    canvas = page.locator(".photo-canvas-pane canvas").first
+    box = canvas.bounding_box()
+    assert box["width"] > 50 and box["height"] > 50
+    # 中央は肌色（テスト写真の中央領域）
+    px = canvas_pixel(page, 0.5, 0.35)
+    assert abs(px[0] - 205) < 30, f"中央画素が写真と一致しない: {px}"
+
+
+def test_photo_edit_preserves_outside_pixels(page, base_url, tmp_path):
+    """【受け入れ条件】マスク外の画素が編集後も元写真とビット一致する"""
+    open_photo_editor(page, base_url, tmp_path)
+    # ブラシはキャンバス中央（=画像中央 0.5,0.5）に描かれるため、中央を観測点にする
+    before_center = canvas_pixel(page, 0.5, 0.5)
+    before_corner = canvas_pixel(page, 0.02, 0.98)
+
+    paint_custom_mask_at_center(page)
+    # 色相を大きく回して色変更を適用
+    page.locator("input[aria-label='色相']").fill("120")
+    page.get_by_role("button", name="色変更を適用").click()
+    page.wait_for_timeout(500)
+
+    after_center = canvas_pixel(page, 0.5, 0.5)
+    after_corner = canvas_pixel(page, 0.02, 0.98)
+    assert after_center != before_center, "マスク内が変化していない（編集が効いていない）"
+    assert after_corner == before_corner, (
+        f"マスク外の画素が変化した: {before_corner} -> {after_corner}（原本保持の破壊）"
+    )
+
+
+def test_photo_editor_undo_restores_pixels(page, base_url, tmp_path):
+    """Undoで編集前の画素に完全一致で戻る"""
+    open_photo_editor(page, base_url, tmp_path)
+    original_center = canvas_pixel(page, 0.5, 0.5)
+    paint_custom_mask_at_center(page)
+    page.locator("input[aria-label='色相']").fill("90")
+    page.get_by_role("button", name="色変更を適用").click()
+    page.wait_for_timeout(500)
+    assert canvas_pixel(page, 0.5, 0.5) != original_center
+    page.get_by_role("button", name="元に戻す").click()
+    page.wait_for_timeout(500)
+    assert canvas_pixel(page, 0.5, 0.5) == original_center, "Undo後が原本と一致しない"
+
+
+def test_photo_editor_general_blocks_clothes_removal(page, base_url, tmp_path):
+    """一般モードでは衣服領域の除去（脱衣）ができない"""
+    open_photo_editor(page, base_url, tmp_path)
+    page.locator(".part-tree-item", has_text="衣服").click()
+    page.wait_for_timeout(300)
+    expect(page.get_by_text("一般モードでは衣服領域の除去（脱衣）はできません")).to_be_visible()
+    assert not page.get_by_role("button", name="マスク内を除去・補完").is_visible()
+
+
+def test_photo_editor_project_save_restore(page, base_url, tmp_path):
+    """写真プロジェクトの保存と完全復元（画素レベル）"""
+    open_photo_editor(page, base_url, tmp_path)
+    paint_custom_mask_at_center(page)
+    page.locator("input[aria-label='色相']").fill("120")
+    page.get_by_role("button", name="色変更を適用").click()
+    page.wait_for_timeout(500)
+    edited_center = canvas_pixel(page, 0.5, 0.5)
+
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="保存 (.pvsproj)").click()
+    proj = tmp_path / "photo.pvsproj"
+    dl.value.save_as(proj)
+    saved = json.loads(proj.read_text())
+    assert saved.get("type") == "photo-project"
+    assert saved.get("sourcePhoto", "").startswith("data:image/png")
+    assert len(saved["session"]["ops"]) == 1
+
+    # ページを開き直してプロジェクトを復元
+    page.goto(f"{base_url}#/photo")
+    page.wait_for_timeout(800)
+    page.locator("input[aria-label='プロジェクトファイル']").set_input_files(str(proj))
+    page.wait_for_timeout(1000)
+    assert canvas_pixel(page, 0.5, 0.5) == edited_center, "復元後の画素が保存時と一致しない"
+
+
+def test_medical_photo_editor_after_auth(page, base_url, medical_credentials, tmp_path):
+    """医療認証後に医療写真編集が開き、衣服領域の除去も利用可能"""
+    page.goto(f"{base_url}#/medical")
+    page.wait_for_timeout(800)
+    page.locator("#auth-userid").fill(medical_credentials["userId"])
+    page.locator("#auth-password").fill(medical_credentials["loginPassword"])
+    page.get_by_role("button", name="次へ").click()
+    page.wait_for_timeout(800)
+    page.locator("#auth-permit").fill(medical_credentials["permitPassword"])
+    page.get_by_role("button", name="医療モードを開始").click()
+    page.wait_for_timeout(1000)
+    expect(page.get_by_text("医療モード：写真編集")).to_be_visible()
+    # 写真を読み込み衣服領域を選択 → 医療モードでは除去ボタンが使える
+    photo = make_test_photo(tmp_path / "medical.png")
+    page.locator("input[aria-label='写真ファイル']").set_input_files(str(photo))
+    page.wait_for_timeout(800)
+    page.locator(".part-tree-item", has_text="衣服").click()
+    page.wait_for_timeout(300)
+    expect(page.get_by_role("button", name="マスク内を除去・補完")).to_be_visible()
+
+
+def test_photo_editor_navigation_from_home(page, base_url):
+    """ホームの一般モードが写真編集（主エディタ）へ遷移する"""
+    page.goto(base_url)
+    page.wait_for_timeout(500)
+    page.locator(".mode-card", has_text="一般モード").click()
+    page.wait_for_timeout(500)
+    expect(page.get_by_text("本人の写真を取り込んで編集を開始")).to_be_visible()

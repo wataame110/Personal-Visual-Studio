@@ -25,6 +25,8 @@
 | --- | --- | --- |
 | `models/face_landmarker.task` | Google MediaPipe Models | MediaPipe Models 配布条件に従う（再配布条件は提供元の最新情報を確認すること） |
 | `models/pose_landmarker_lite.task` | Google MediaPipe Models | 同上 |
+| `models/selfie_multiclass_256x256.tflite` | Google MediaPipe Models | 同上（領域分割用） |
+| `mediapipe/wasm/` | Google MediaPipe Tasks Vision | Apache-2.0（npmパッケージ @mediapipe/tasks-vision からの同梱） |
 | `models/cc0/human-base-rigged.glb` | Innerscene（MakeHuman/MPFB CC0 assets） | CC0。出典・取得URL・SHA-256は `models/cc0/README.md` を参照 |
 
 ## 3Dアセットについて

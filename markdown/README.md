@@ -1,12 +1,23 @@
 # Personal Visual Studio
 
-高精度3D人物モンタージュ・人体再現・医療美容シミュレーション・バーチャル試着の統合Webアプリケーションです。
+実在人物の写真を原本とし、指定した領域だけを精密に編集できるフォトモンタージュ・シミュレーションWebアプリケーションです。写真なしで作成する3Dモンタージュ編集も搭載しています。
 
 ブラウザ内ですべての処理が完結し、写真・3Dモデル・作業データが外部サーバーへ送信されることはありません。
 
 ## 主な機能
 
-### 一般モード
+### 写真編集（主エディタ：一般・医療共通）
+- 本人写真の取り込み（端末内処理のみ。外部送信なし）
+- MediaPipe 領域分割による髪・顔（肌）・体（肌）・衣服の自動マスク生成
+- ブラシによる編集マスクの手動補正（追加・除去・ソフトエッジ）
+- 領域限定の編集操作：色変更（色相・彩度・明度）／肌スムージング／明暗調整／除去・補完／局所変形（リキファイ）
+- **マスク外の画素は元写真とビット一致で保持**（自動テストで画素単位検証）
+- 非破壊編集（原本＋操作列の再描画）、Undo/Redo
+- Before/After 並列比較・Before長押し表示
+- PNG/JPEG/WebP 出力、`.pvsproj` プロジェクト保存・完全復元
+- 一般モードでは衣服領域の除去（脱衣）は不可。医療モードでは全操作が利用可能
+
+### 3Dモンタージュ（写真なしで作成）
 - 顔・頭部・全身のパラメトリック3D再現（連続曲面のロフトメッシュ）
 - 部位別・左右独立の詳細編集（目・鼻・口・眉・耳・体型・四肢など）
 - 正面写真1枚からの本人再現（顔輪郭・顎幅・目の開き/離隔・鼻長・口幅/位置・肩幅骨盤比・肌色・髪色を端末内解析で反映）
@@ -32,18 +43,18 @@
 ## 重要な注意事項
 
 - 本アプリの医療機能は**視覚的説明の支援**を目的としており、医学的な診断や治療結果の確定的予測を行うものではありません。
-- 医療モードの認証は**開発・検証用の簡易アクセスゲート**です。実患者情報の保護には使用できません（詳細は `docs/MEDICAL.md`）。
+- 医療モードの認証は**開発・検証用の簡易アクセスゲート**です。実患者情報の保護には使用できません（詳細は `markdown/MEDICAL.md`）。
 - 開発・検証版では**実患者情報を使用しないでください**。
 - 人体の解剖学的形状は医学的監修を受けたものではなく、近似モデルです。
 
 ## ドキュメント
 
-- [セットアップ・公開手順](docs/SETUP.md)
-- [基本操作マニュアル](docs/MANUAL.md)
-- [医療向け機能・プロファイル管理](docs/MEDICAL.md)
-- [開発者向けアーキテクチャ](docs/ARCHITECTURE.md)
-- [使用ライブラリとライセンス](docs/LICENSES.md)
-- [既知の制約・未検証事項](docs/LIMITATIONS.md)
+- [セットアップ・公開手順](markdown/SETUP.md)
+- [基本操作マニュアル](markdown/MANUAL.md)
+- [医療向け機能・プロファイル管理](markdown/MEDICAL.md)
+- [開発者向けアーキテクチャ](markdown/ARCHITECTURE.md)
+- [使用ライブラリとライセンス](markdown/LICENSES.md)
+- [既知の制約・未検証事項](markdown/LIMITATIONS.md)
 
 ## クイックスタート
 
@@ -57,17 +68,17 @@ npm run build      # 本番ビルド（dist/）
 医療版プロファイルの生成・増設：
 
 ```bash
-node javascript/tools/generate-profiles.mjs 30 json/auth/profiles.json   # 30枠
-node javascript/tools/generate-profiles.mjs 50 json/auth/profiles.json   # 50枠へ増設
+node javascript/generate-profiles.mjs 30 json/auth/profiles.json   # 30枠
+node javascript/generate-profiles.mjs 50 json/auth/profiles.json   # 50枠へ増設
 ```
 
 MediaPipe モデルの配置（写真解析を使う場合）：
 
 ```bash
-node javascript/tools/fetch-models.mjs
+node javascript/fetch-models.mjs
 ```
 
 ## ライセンス
 
 ソースコード：MIT License（[LICENSE](LICENSE) を参照）
-同梱モデルファイルはそれぞれの配布条件に従います（`docs/LICENSES.md`）。
+同梱モデルファイルはそれぞれの配布条件に従います（`markdown/LICENSES.md`）。

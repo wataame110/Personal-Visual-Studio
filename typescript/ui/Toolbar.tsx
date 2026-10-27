@@ -119,6 +119,9 @@ export function Toolbar({ viewportRef, mode, onOpenHelp, onOpenPhoto, onStatus }
     <div className="toolbar" role="toolbar" aria-label="メインツールバー">
       <div className="group">
         <button onClick={() => navigate('home')} title="トップへ戻る">← トップ</button>
+        <button onClick={() => navigate(mode === 'medical' ? 'medical' : 'photo')} title="写真ベースの編集（主エディタ）へ">
+          写真編集へ
+        </button>
         {mode === 'medical' && (
           <button onClick={() => { auth.logout(); navigate('home'); }} title="ログアウト">ログアウト</button>
         )}
