@@ -45,7 +45,7 @@ npm run preview # ビルド結果のローカル確認
 
 - Vite の `base: './'`（相対パス）により `<user>.github.io/<repo>/` 配下でもアセットが解決される
 - 画面遷移は Hash Router（`#/editor` など）のため、直接アクセス・再読み込みで 404 にならない
-- 認証プロファイル・モデルファイルは `public/` 配下から相対パスで読み込む
+- 認証プロファイルは `json/`（publicDir）、モデルファイルは `models/`（ビルド時に dist/models へコピー）から相対パスで読み込む
 
 ### 4.3 手動デプロイ
 
@@ -66,5 +66,5 @@ node javascript/generate-profiles.mjs 30 json/auth/profiles.json
 node javascript/fetch-models.mjs
 ```
 
-両者とも `public/` 配下に出力され、アプリケーションとともに配布されます。
+認証プロファイルは `json/auth/`、モデルは `models/` に出力され、ビルド時にアプリケーションとともに配布されます。
 **`json/auth/profiles.json` の初期パスワードは必ず変更してください。**

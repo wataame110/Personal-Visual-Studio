@@ -9,9 +9,12 @@
 ### 一般モード
 - 顔・頭部・全身のパラメトリック3D再現（連続曲面のロフトメッシュ）
 - 部位別・左右独立の詳細編集（目・鼻・口・眉・耳・体型・四肢など）
-- 正面写真1枚からの初期ガイド生成（MediaPipe による端末内解析・手動補正可）
+- 正面写真1枚からの本人再現（顔輪郭・顎幅・目の開き/離隔・鼻長・口幅/位置・肩幅骨盤比・肌色・髪色を端末内解析で反映）
+- 元写真と3Dモデルの重ね合わせ・透明度調整・並列比較（本人再現の確認用）
 - 髪型・髪色・部分カラー・グラデーション
 - 衣服の試着（トップス・アウター・パンツ・スカート・ワンピース・靴・帽子）
+  - 衣服は脚・胴体の実メッシュ半径に自動フィットし、身体の突き抜けを防止
+  - 一般モードは常時着衣（全削除不可・Undo/Redo/保存/GLBでも維持）
 - メガネ・アクセサリーの配置
 - 3Dモデルの360度回転・拡大縮小・視点プリセット・部位フォーカス
 - GLB 出力・再読み込み、PNG/JPEG/WebP 画像出力
@@ -19,6 +22,7 @@
 - Undo/Redo・比較案（案A/B/C）の保存・複製・並列比較
 
 ### 医療機関モード（認証制）
+- 一般モードの全機能を搭載した上位版（初期状態は非着衣、着脱は自由）
 - 解剖学的な部位別編集（胸部・腹部・四肢の細部、女性・男性外性器）
 - 陰茎の湾曲（左右・上下・開始位置・範囲・屈曲）の局所的形状変形
 - 計測（二点間距離・角度）・注釈・施術案の複数保存
@@ -53,14 +57,14 @@ npm run build      # 本番ビルド（dist/）
 医療版プロファイルの生成・増設：
 
 ```bash
-node tools/generate-profiles.mjs 30 public/auth/profiles.json   # 30枠
-node tools/generate-profiles.mjs 50 public/auth/profiles.json   # 50枠へ増設
+node javascript/tools/generate-profiles.mjs 30 json/auth/profiles.json   # 30枠
+node javascript/tools/generate-profiles.mjs 50 json/auth/profiles.json   # 50枠へ増設
 ```
 
 MediaPipe モデルの配置（写真解析を使う場合）：
 
 ```bash
-node tools/fetch-models.mjs
+node javascript/tools/fetch-models.mjs
 ```
 
 ## ライセンス

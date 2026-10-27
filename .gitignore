@@ -6,3 +6,6 @@ dist-ssr
 coverage
 .vite
 tsconfig.tsbuildinfo
+
+__pycache__/
+*.pyc
