@@ -11,8 +11,11 @@ import type {
   Scenario,
   Vec3,
   Provenance,
+  PoseState,
+  CameraView,
 } from './types';
 import { createDefaultParts } from './parts';
+import { getPoseById } from './poses';
 
 export type AppMode = 'general' | 'medical';
 export type UiLevel = 'beginner' | 'expert';
@@ -22,7 +25,14 @@ export interface Snapshot {
   globals: BodyGlobals;
   hair: HairConfig;
   clothing: ClothingState;
+  pose: PoseState;
 }
+
+const DEFAULT_POSE: PoseState = {
+  poseId: 'stand-front',
+  customJointAngles: {},
+  camera: { azimuth: 0, elevation: 0, distance: 1 },
+};
 
 const DEFAULT_GLOBALS: BodyGlobals = {
   height: 1.65,
@@ -70,6 +80,7 @@ interface EditorState {
   globals: BodyGlobals;
   hair: HairConfig;
   clothing: ClothingState;
+  pose: PoseState;
   annotations: Annotation[];
   measurements: Measurement[];
   hairRemoval: HairRemovalDesign[];
@@ -98,6 +109,10 @@ interface EditorState {
   setGlobals: (g: Partial<BodyGlobals>) => void;
   setHair: (h: Partial<HairConfig>) => void;
   setClothing: (c: Partial<ClothingState>) => void;
+  setPose: (p: Partial<PoseState>) => void;
+  setJointAngle: (jointId: string, angle: number) => void;
+  setCamera: (c: Partial<CameraView>) => void;
+  applyPoseById: (poseId: string) => void;
   addAnnotation: (a: Annotation) => void;
   removeAnnotation: (id: string) => void;
   addMeasurement: (m: Measurement) => void;
@@ -125,7 +140,7 @@ interface EditorState {
 }
 
 function takeSnapshot(s: EditorState): Snapshot {
-  return structuredClone({ parts: s.parts, globals: s.globals, hair: s.hair, clothing: s.clothing });
+  return structuredClone({ parts: s.parts, globals: s.globals, hair: s.hair, clothing: s.clothing, pose: s.pose });
 }
 
 /** 状態を変更するすべての操作で呼び出し、履歴に現在状態を積む */
@@ -142,6 +157,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   globals: structuredClone(DEFAULT_GLOBALS),
   hair: structuredClone(DEFAULT_HAIR),
   clothing: structuredClone(DEFAULT_CLOTHING),
+  pose: structuredClone(DEFAULT_POSE),
   annotations: [],
   measurements: [],
   hairRemoval: [],
@@ -219,6 +235,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setHair: (h) => set((s) => withHistory(s, { hair: { ...s.hair, ...h } })),
   setClothing: (c) => set((s) => withHistory(s, { clothing: { ...s.clothing, ...c } })),
 
+  setPose: (p) => set((s) => withHistory(s, { pose: { ...s.pose, ...p } })),
+  setJointAngle: (jointId, angle) =>
+    set((s) => {
+      const customJointAngles = { ...s.pose.customJointAngles, [jointId]: angle };
+      return withHistory(s, { pose: { ...s.pose, customJointAngles } });
+    }),
+  setCamera: (c) => set((s) => withHistory(s, { pose: { ...s.pose, camera: { ...s.pose.camera, ...c } } })),
+  applyPoseById: (poseId) =>
+    set((s) => {
+      const pose = getPoseById(poseId);
+      if (!pose) return {};
+      return withHistory(s, {
+        pose: {
+          poseId,
+          customJointAngles: {},
+          camera: { ...pose.camera },
+        },
+      });
+    }),
+
   addAnnotation: (a) => set((s) => ({ annotations: [...s.annotations, a] })),
   removeAnnotation: (id) => set((s) => ({ annotations: s.annotations.filter((x) => x.id !== id) })),
   addMeasurement: (m) => set((s) => ({ measurements: [...s.measurements, m] })),
@@ -267,6 +303,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: snap.globals,
         hair: snap.hair,
         clothing: snap.clothing,
+        pose: snap.pose,
         annotations: structuredClone(s.annotations),
       };
       return { scenarios: [...s.scenarios, sc] };
@@ -281,6 +318,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: structuredClone(sc.globals),
         hair: structuredClone(sc.hair),
         clothing: structuredClone(sc.clothing),
+        pose: structuredClone(sc.pose),
       });
     }),
 
@@ -319,6 +357,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: structuredClone(snap.globals),
         hair: structuredClone(snap.hair),
         clothing: structuredClone(snap.clothing),
+        pose: structuredClone(snap.pose),
       }),
     ),
 
@@ -339,8 +378,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         globals: structuredClone(DEFAULT_GLOBALS),
         hair: structuredClone(DEFAULT_HAIR),
         clothing: structuredClone(DEFAULT_CLOTHING),
+        pose: structuredClone(DEFAULT_POSE),
       }),
     ),
 }));
 
-export const DEFAULTS = { globals: DEFAULT_GLOBALS, hair: DEFAULT_HAIR, clothing: DEFAULT_CLOTHING };
+export const DEFAULTS = { globals: DEFAULT_GLOBALS, hair: DEFAULT_HAIR, clothing: DEFAULT_CLOTHING, pose: DEFAULT_POSE };

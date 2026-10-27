@@ -13,8 +13,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          three: ['three'],
-          mediapipe: ['@mediapipe/tasks-vision'],
           react: ['react', 'react-dom'],
         },
       },

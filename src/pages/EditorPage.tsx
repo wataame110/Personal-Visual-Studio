@@ -1,18 +1,13 @@
-// エディタページ（一般モード・医療モード共通）
+// エディタページ：2Dモンタージュ合成エディタ
 import { useRef, useState, useEffect, useCallback } from 'react';
-import * as THREE from 'three';
 import { useEditorStore } from '../core/store';
-import { Viewport } from '../engine/viewport';
-import { ViewportPane } from '../ui/ViewportPane';
+import { MontageEngine } from '../core/montage';
 import { Toolbar } from '../ui/Toolbar';
 import { PartTree } from '../ui/PartTree';
 import { ParamPanel } from '../ui/ParamPanel';
 import { GlobalBodyPanel, HairPanel, ClothingPanel } from '../ui/BodyPanels';
 import { BottomPanel } from '../ui/BottomPanel';
-import { MeasurePanel, HairRemovalPanel, type MeasureMode } from '../ui/MedicalPanels';
-import { PhotoPanel } from '../ui/PhotoPanel';
 import { HelpModal } from '../ui/HelpModal';
-import { CAMERA_PRESETS } from '../engine/viewport';
 
 interface Props {
   mode: 'general' | 'medical';
@@ -20,15 +15,12 @@ interface Props {
 
 export default function EditorPage({ mode }: Props) {
   const store = useEditorStore();
-  const viewportRef = useRef<Viewport | null>(null);
-  const [rightTab, setRightTab] = useState<'part' | 'body' | 'hair' | 'clothing' | 'measure' | 'hairRemoval'>('part');
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const engineRef = useRef<MontageEngine | null>(null);
+  const [viewMode, setViewMode] = useState<'face' | 'fullbody'>('face');
+  const [rightTab, setRightTab] = useState<'part' | 'body' | 'hair' | 'clothing'>('part');
   const [showHelp, setShowHelp] = useState(false);
-  const [showPhoto, setShowPhoto] = useState(false);
   const [status, setStatus] = useState('');
-  const [sourcePhoto, setSourcePhoto] = useState<string | undefined>();
-  const [photoLandmarks, setPhotoLandmarks] = useState<{ x: number; y: number; label: string }[]>([]);
-  const [measureMode, setMeasureMode] = useState<MeasureMode>('off');
-  const [pickedPoints, setPickedPoints] = useState<THREE.Vector3[]>([]);
 
   useEffect(() => {
     store.setMode(mode);
@@ -42,25 +34,28 @@ export default function EditorPage({ mode }: Props) {
     return () => clearTimeout(t);
   }, [status]);
 
-  // 計測点マーカーの反映
-  useEffect(() => {
-    viewportRef.current?.setMeasurementMarkers(pickedPoints.map((p) => ({ x: p.x, y: p.y, z: p.z })));
-  }, [pickedPoints]);
-
-  const handlePickPoint = useCallback((p: THREE.Vector3) => {
-    setPickedPoints((prev) => {
-      const limit = measureMode === 'angle' ? 3 : measureMode === 'distance' ? 2 : 1;
-      const next = [...prev, p];
-      return next.length > limit ? next.slice(-limit) : next;
+  const render = useCallback(() => {
+    if (!canvasRef.current) return;
+    if (!engineRef.current) {
+      engineRef.current = new MontageEngine(canvasRef.current);
+    }
+    engineRef.current.render(store.parts, store.hair, store.clothing, store.globals, {
+      width: viewMode === 'face' ? 1024 : 768,
+      height: viewMode === 'face' ? 1024 : 1536,
+      mode: viewMode,
     });
-  }, [measureMode]);
+  }, [store.parts, store.hair, store.clothing, store.globals, viewMode]);
 
-  // キーボードショートカット（IME入力中・フォーム入力中は無効化）
+  useEffect(() => {
+    render();
+  }, [render]);
+
+  // キーボードショートカット
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
-      if (e.isComposing) return; // 日本語IME変換中は無視
+      if (e.isComposing) return;
       const s = useEditorStore.getState();
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !typing) {
         e.preventDefault();
@@ -68,17 +63,13 @@ export default function EditorPage({ mode }: Props) {
       } else if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'y' || (e.shiftKey && e.key.toLowerCase() === 'z')) && !typing) {
         e.preventDefault();
         s.redo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        // 保存はツールバーのボタン経由（ファイルダイアログを開くためユーザー操作が必要）
-        onStatus('ツールバーの「保存 (.pvsproj)」ボタンから保存してください。');
       } else if (e.key === 'F1') {
         e.preventDefault();
         setShowHelp((v) => !v);
-      } else if (!typing && /^[1-9]$/.test(e.key)) {
-        const keys = Object.keys(CAMERA_PRESETS);
-        const idx = Number(e.key) - 1;
-        if (idx < keys.length) s.requestCameraPreset(keys[idx]);
+      } else if (!typing && e.key === '1') {
+        setViewMode('face');
+      } else if (!typing && e.key === '2') {
+        setViewMode('fullbody');
       }
     };
     window.addEventListener('keydown', onKey);
@@ -87,21 +78,22 @@ export default function EditorPage({ mode }: Props) {
 
   const onStatus = (msg: string) => setStatus(msg);
 
+  const exportImage = useCallback(() => {
+    if (!canvasRef.current) return;
+    const dataUrl = canvasRef.current.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `montage-${Date.now()}.png`;
+    a.click();
+    onStatus('PNG画像を保存しました。');
+  }, [onStatus]);
+
   return (
     <div className="app-shell">
-      <Toolbar
-        viewportRef={viewportRef}
-        mode={mode}
-        sourcePhoto={sourcePhoto}
-        photoLandmarks={photoLandmarks}
-        onOpenHelp={() => setShowHelp(true)}
-        onOpenPhoto={() => setShowPhoto(true)}
-        onStatus={onStatus}
-      />
+      <Toolbar mode={mode} onOpenHelp={() => setShowHelp(true)} onStatus={onStatus} onExportImage={exportImage} />
       {mode === 'medical' && (
         <div className="notice" style={{ margin: 0, borderRadius: 0 }}>
           医療モード：視覚的説明支援のためのシミュレーションです。医学的な診断や治療結果の確定的予測ではありません。
-          開発・検証版では実患者情報を使用しないでください。
         </div>
       )}
       <div className="editor-main">
@@ -109,8 +101,13 @@ export default function EditorPage({ mode }: Props) {
           <PartTree mode={mode} />
         </div>
         <div className="panel-center">
-          <ViewportPane viewportRef={viewportRef} pickMode={measureMode !== 'off'} onPickPoint={handlePickPoint} />
-          {store.compareScenarioId && <ViewportPane compare />}
+          <div className="montage-toolbar">
+            <button className={viewMode === 'face' ? 'active' : ''} onClick={() => setViewMode('face')}>顔 (1)</button>
+            <button className={viewMode === 'fullbody' ? 'active' : ''} onClick={() => setViewMode('fullbody')}>全身 (2)</button>
+          </div>
+          <div className="montage-canvas-wrap">
+            <canvas ref={canvasRef} className="montage-canvas" />
+          </div>
         </div>
         <div className="panel-right">
           <div className="tabs">
@@ -120,27 +117,11 @@ export default function EditorPage({ mode }: Props) {
             {mode === 'general' && (
               <button className={rightTab === 'clothing' ? 'active' : ''} onClick={() => setRightTab('clothing')}>衣服</button>
             )}
-            {mode === 'medical' && (
-              <>
-                <button className={rightTab === 'measure' ? 'active' : ''} onClick={() => setRightTab('measure')}>計測</button>
-                <button className={rightTab === 'hairRemoval' ? 'active' : ''} onClick={() => setRightTab('hairRemoval')}>脱毛</button>
-              </>
-            )}
           </div>
           {rightTab === 'part' && <ParamPanel />}
           {rightTab === 'body' && <GlobalBodyPanel />}
           {rightTab === 'hair' && <HairPanel />}
           {rightTab === 'clothing' && mode === 'general' && <ClothingPanel onStatus={onStatus} />}
-          {rightTab === 'measure' && mode === 'medical' && (
-            <MeasurePanel
-              measureMode={measureMode}
-              setMeasureMode={setMeasureMode}
-              pickedPoints={pickedPoints}
-              clearPicked={() => setPickedPoints([])}
-              onStatus={onStatus}
-            />
-          )}
-          {rightTab === 'hairRemoval' && mode === 'medical' && <HairRemovalPanel onStatus={onStatus} />}
         </div>
         <div className="panel-bottom">
           <BottomPanel onStatus={onStatus} />
@@ -154,17 +135,6 @@ export default function EditorPage({ mode }: Props) {
         </div>
       </div>
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-      {showPhoto && (
-        <PhotoPanel
-          onClose={() => setShowPhoto(false)}
-          onStatus={onStatus}
-          initialPhoto={sourcePhoto}
-          onPhotoLoaded={(dataUrl, landmarks) => {
-            setSourcePhoto(dataUrl);
-            setPhotoLandmarks(landmarks);
-          }}
-        />
-      )}
     </div>
   );
 }

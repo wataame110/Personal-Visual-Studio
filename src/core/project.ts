@@ -9,6 +9,7 @@ import {
   type Annotation,
   type Measurement,
   type HairRemovalDesign,
+  type PoseState,
 } from './types';
 import { createDefaultParts } from './parts';
 import { DEFAULTS } from './store';
@@ -18,6 +19,7 @@ export interface ProjectBuildInput {
   parts: PartStateMap;
   hair: HairConfig;
   clothing: ClothingState;
+  pose: PoseState;
   scenarios: { id: string; name: string; createdAt: number }[];
   scenarioData: ProjectFile['scenarioData'];
   annotations: Annotation[];
@@ -37,6 +39,7 @@ export function buildProjectFile(input: ProjectBuildInput): ProjectFile {
     parts: structuredClone(input.parts),
     hair: structuredClone(input.hair),
     clothing: structuredClone(input.clothing),
+    pose: structuredClone(input.pose),
     scenarios: structuredClone(input.scenarios),
     scenarioData: structuredClone(input.scenarioData),
     annotations: structuredClone(input.annotations),

@@ -79,9 +79,24 @@ label { font-size: 12px; color: var(--text-dim); }
   min-height: 0;
 }
 .panel-left { grid-area: left; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--border); padding: 8px; }
-.panel-center { grid-area: center; position: relative; min-width: 0; min-height: 0; display: flex; }
+.panel-center { grid-area: center; position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .panel-right { grid-area: right; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--border); padding: 8px; }
 .panel-bottom { grid-area: bottom; overflow-y: auto; background: var(--panel); border-top: 1px solid var(--border); padding: 8px 12px; }
+
+.montage-toolbar {
+  display: flex; gap: 6px; padding: 8px; background: var(--panel);
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.montage-toolbar button { font-size: 12px; padding: 4px 12px; }
+.montage-toolbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.montage-canvas-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 16px; min-height: 0; overflow: hidden;
+}
+.montage-canvas {
+  max-width: 100%; max-height: 100%; border: 1px solid var(--border);
+  border-radius: 8px; background: #fff; box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
 
 @media (max-width: 900px) {
   .editor-main {
@@ -177,8 +192,6 @@ label { font-size: 12px; color: var(--text-dim); }
 .tabs { display: flex; gap: 2px; margin-bottom: 8px; }
 .tabs button { border-radius: 6px 6px 0 0; font-size: 12px; }
 .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-
-.photo-panel-canvas { max-width: 100%; border: 1px solid var(--border); border-radius: 6px; cursor: crosshair; }
 
 .kbd-table td { padding: 2px 10px 2px 0; font-size: 12px; }
 kbd {
