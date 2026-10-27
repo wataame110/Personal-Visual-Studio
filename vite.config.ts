@@ -7,6 +7,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   base: './',
   plugins: [react()],
+  // json/ 配下（json/auth/profiles.json 等）を dist ルートにコピーして配信する
+  publicDir: 'json',
   build: {
     target: 'es2020',
     chunkSizeWarningLimit: 2048,
@@ -20,6 +22,6 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['tests/**/*.test.ts'],
+    include: ['typescript/tests/**/*.test.ts'],
   },
 });
